@@ -280,7 +280,7 @@ apt install -y fail2ban
 systemctl enable --now fail2ban
 ```
 
-**غيّر كلمة مرور الإدارة** في `.env` من `alrayhan2026` إلى شيء قوي — هذه أهم خطوة أمنية.
+**عيّن كلمة مرور قوية للإدارة** في `.env` (المتغير `ADMIN_PASSWORD`) — هذه أهم خطوة أمنية.
 
 ---
 

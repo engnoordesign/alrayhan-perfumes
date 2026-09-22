@@ -90,15 +90,16 @@ cart, accounts, wallet, and the admin panel, all served from the same address.
 On Windows you can also just double-click `start.bat` in the project root (after running
 `npm install` once inside `server/`). On Mac/Linux, `./start.sh` does the same thing.
 
-## Default admin password
+## Admin password
 
-```
-alrayhan2026
-```
+There is no built-in default password. Copy `server/.env.example` to `server/.env` and set
+`ADMIN_PASSWORD` to a strong password of your choice, then restart the server.
+
+If `ADMIN_PASSWORD` is not set, the server generates a temporary random password on every
+start and prints it in the console, so you can still log in while testing locally.
 
 Enter it via the small "لوحة التحكم" link at the bottom of the site, or the menu icon next to
-the logo. Change it any time by setting `ADMIN_PASSWORD` in `server/.env` and restarting the
-server.
+the logo.
 
 ## What was removed / simplified
 
