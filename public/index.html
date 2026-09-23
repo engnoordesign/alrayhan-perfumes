@@ -846,6 +846,14 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     padding:10px 14px; font-size:12px; color:var(--gold-bright); text-align:center; margin-bottom:14px;
   }
   .auth-submit{ width:100%; justify-content:center; margin-top:4px; }
+  .auth-method{ display:flex; gap:4px; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:4px; margin-bottom:16px; }
+  .auth-method-btn{
+    all:unset; flex:1; text-align:center; cursor:pointer; padding:8px 10px; border-radius:6px;
+    font-size:12.5px; font-weight:600; color:var(--bone-dim); transition:background .18s, color .18s;
+  }
+  .auth-method-btn:hover{ color:var(--bone); }
+  .auth-method-btn.active{ background:var(--gold); color:var(--black); }
+  html[data-theme="light"] .auth-method-btn.active{ color:#FFFDF7; }
   .auth-error{ color:#C0524B; font-size:12px; text-align:center; margin-top:10px; min-height:16px; }
   .auth-divider{ display:flex; align-items:center; gap:10px; margin:20px 0; color:var(--bone-dim); font-size:11px; }
   .auth-divider::before, .auth-divider::after{ content:''; flex:1; height:1px; background:var(--line); }
@@ -1081,10 +1089,14 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
 
     <div id="authStepPhone">
       <h3>تسجيل الدخول</h3>
-      <p class="auth-sub">أدخل رقم هاتفك وسنرسل لك كود تفعيل</p>
+      <p class="auth-sub" id="authMethodSub">أدخل رقم هاتفك وسنرسل لك كود تفعيل على واتساب</p>
+      <div class="auth-method" role="tablist" aria-label="طريقة التسجيل">
+        <button class="auth-method-btn active" type="button" data-method="phone" role="tab" aria-selected="true">رقم الهاتف</button>
+        <button class="auth-method-btn" type="button" data-method="email" role="tab" aria-selected="false">البريد الإلكتروني</button>
+      </div>
       <div class="auth-field">
-        <label>رقم الهاتف</label>
-        <input type="tel" id="authPhoneInput" placeholder="07xxxxxxxxx">
+        <label id="authPhoneLabel">رقم الهاتف</label>
+        <input type="tel" id="authPhoneInput" placeholder="07xxxxxxxxx" dir="ltr">
       </div>
       <button class="btn solid auth-submit" id="authSendCodeBtn" type="button">إرسال الكود</button>
       <p class="auth-error" id="authError"></p>
@@ -1108,7 +1120,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       <div class="auth-otp-hint" id="authOtpHint"></div>
       <div class="auth-field">
         <label>كود التفعيل</label>
-        <input type="text" id="authOtpInput" placeholder="0000" inputmode="numeric" maxlength="4">
+        <input type="text" id="authOtpInput" placeholder="000000" inputmode="numeric" maxlength="6" autocomplete="one-time-code" dir="ltr">
       </div>
       <button class="btn solid auth-submit" id="authVerifyBtn" type="button">تأكيد</button>
       <p class="auth-error" id="authOtpError"></p>
@@ -1970,8 +1982,32 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   function fmtIQDWallet(n){ return (n||0).toLocaleString('en-US') + ' د.ع'; }
 
   /* ---- auth modal ---- */
-  let pendingPhone = null;
+  let pendingPhone = null;          // the phone number OR email the code was sent to
+  let pendingMethod = 'phone';      // 'phone' | 'email'
+  let authMethod = 'phone';
   let pendingSocialProvider = null;
+
+  function setAuthMethod(m){
+    authMethod = m === 'email' ? 'email' : 'phone';
+    document.querySelectorAll('.auth-method-btn').forEach(b=>{
+      const on = b.dataset.method === authMethod;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    const input = document.getElementById('authPhoneInput');
+    input.value = '';
+    if(authMethod === 'email'){
+      input.type = 'email'; input.placeholder = 'you@email.com'; input.autocomplete = 'email';
+      document.getElementById('authPhoneLabel').textContent = 'البريد الإلكتروني';
+      document.getElementById('authMethodSub').textContent = 'أدخل بريدك الإلكتروني وسنرسل لك كود تفعيل';
+    }else{
+      input.type = 'tel'; input.placeholder = '07xxxxxxxxx'; input.autocomplete = 'tel';
+      document.getElementById('authPhoneLabel').textContent = 'رقم الهاتف';
+      document.getElementById('authMethodSub').textContent = 'أدخل رقم هاتفك وسنرسل لك كود تفعيل على واتساب';
+    }
+    document.getElementById('authError').textContent = '';
+  }
+  document.querySelectorAll('.auth-method-btn').forEach(b=> b.addEventListener('click', ()=>{ setAuthMethod(b.dataset.method); document.getElementById('authPhoneInput').focus(); }));
 
   const authOverlay = document.getElementById('authOverlay');
   const authStepPhone = document.getElementById('authStepPhone');
@@ -1986,7 +2022,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
 
   function openAuth(){
     showAuthStep('phone');
-    document.getElementById('authPhoneInput').value = '';
+    setAuthMethod('phone');
     document.getElementById('authError').textContent = '';
     authOverlay.classList.add('open');
   }
@@ -1997,25 +2033,36 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   document.getElementById('authSocialBackBtn').addEventListener('click', ()=> showAuthStep('phone'));
 
   document.getElementById('authSendCodeBtn').addEventListener('click', async ()=>{
-    const phone = document.getElementById('authPhoneInput').value.trim();
+    const value = document.getElementById('authPhoneInput').value.trim();
     const errEl = document.getElementById('authError');
+    const isEmail = authMethod === 'email';
     errEl.textContent = '';
+    if(!value){ errEl.textContent = isEmail ? 'اكتب بريدك الإلكتروني.' : 'اكتب رقم هاتفك.'; return; }
+    const btn = document.getElementById('authSendCodeBtn');
+    btn.disabled = true;
     try{
-      const res = await fetch('/api/auth/phone/send-code', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ phone })
+      const res = await fetch(isEmail ? '/api/auth/email/send-code' : '/api/auth/phone/send-code', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(isEmail ? { email: value } : { phone: value })
       });
       const data = await res.json();
-      if(!res.ok){ errEl.textContent = data.error || 'رقم غير صحيح.'; return; }
-      pendingPhone = phone;
-      document.getElementById('authOtpSubtitle').textContent = data.channel === 'whatsapp' ? `تم إرسال الكود عبر واتساب إلى ${phone}` : `تم إرسال الكود إلى ${phone}`;
-      document.getElementById('authOtpHint').textContent = data.channel === 'whatsapp'
-        ? '📱 أرسلنا كود التحقق إلى واتساب على هذا الرقم — صالح لمدة 5 دقائق.'
-        : `🧪 وضع تجريبي (واتساب غير مفعّل بعد) — الكود هو: ${data.devCode}`;
+      if(!res.ok){ errEl.textContent = data.error || (isEmail ? 'بريد غير صحيح.' : 'رقم غير صحيح.'); return; }
+      pendingPhone = value;
+      pendingMethod = authMethod;
+      const sub = document.getElementById('authOtpSubtitle');
+      const hint = document.getElementById('authOtpHint');
+      sub.textContent = `تم إرسال الكود إلى ${value}`;
+      sub.setAttribute('dir', 'auto');
+      if(data.channel === 'whatsapp') hint.textContent = '📱 أرسلنا كود التحقق إلى واتساب على هذا الرقم — صالح لمدة 5 دقائق.';
+      else if(data.channel === 'email') hint.textContent = '✉️ أرسلنا كود التحقق إلى بريدك — تفقّد صندوق الوارد أو الرسائل غير المرغوب فيها. صالح لمدة 5 دقائق.';
+      else hint.textContent = `🧪 وضع تجريبي (${isEmail ? 'البريد' : 'واتساب'} غير مفعّل بعد) — الكود هو: ${data.devCode}`;
       document.getElementById('authOtpInput').value = '';
       document.getElementById('authOtpError').textContent = '';
       showAuthStep('otp');
     }catch(e){
       errEl.textContent = 'تعذر الاتصال بالخادم — تأكد أن السيرفر يعمل.';
+    }finally{
+      btn.disabled = false;
     }
   });
 
@@ -2023,8 +2070,10 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     const code = document.getElementById('authOtpInput').value.trim();
     const errEl = document.getElementById('authOtpError');
     try{
-      const res = await fetch('/api/auth/phone/verify', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ phone: pendingPhone, code })
+      const isEmail = pendingMethod === 'email';
+      const res = await fetch(isEmail ? '/api/auth/email/verify' : '/api/auth/phone/verify', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(isEmail ? { email: pendingPhone, code } : { phone: pendingPhone, code })
       });
       const data = await res.json();
       if(!res.ok){ errEl.textContent = data.error || 'الكود غير صحيح.'; return; }
