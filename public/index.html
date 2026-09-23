@@ -2007,8 +2007,10 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       const data = await res.json();
       if(!res.ok){ errEl.textContent = data.error || 'رقم غير صحيح.'; return; }
       pendingPhone = phone;
-      document.getElementById('authOtpSubtitle').textContent = `تم إرسال الكود إلى ${phone}`;
-      document.getElementById('authOtpHint').textContent = `🧪 وضع تجريبي (لا يوجد مزود SMS محلياً) — الكود هو: ${data.devCode}`;
+      document.getElementById('authOtpSubtitle').textContent = data.channel === 'whatsapp' ? `تم إرسال الكود عبر واتساب إلى ${phone}` : `تم إرسال الكود إلى ${phone}`;
+      document.getElementById('authOtpHint').textContent = data.channel === 'whatsapp'
+        ? '📱 أرسلنا كود التحقق إلى واتساب على هذا الرقم — صالح لمدة 5 دقائق.'
+        : `🧪 وضع تجريبي (واتساب غير مفعّل بعد) — الكود هو: ${data.devCode}`;
       document.getElementById('authOtpInput').value = '';
       document.getElementById('authOtpError').textContent = '';
       showAuthStep('otp');
