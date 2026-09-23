@@ -151,6 +151,35 @@
   .navlinks a:hover{ color:var(--gold-bright); }
   @media (max-width:960px){ .navlinks{ display:none; } }
 
+  /* ---------- LAYOUT STABILITY: never let anything widen the page ----------
+     Off-canvas drawers, the hero slide zoom and the Light "ping" ring used to
+     push the page wider than the screen, so it wobbled sideways. */
+  html{ overflow-x:hidden; }
+  body{ overflow-x:clip; max-width:100vw; }
+  img, svg, video{ max-width:100%; }
+
+  /* compact header on phones so every button fits on one line */
+  @media (max-width:640px){
+    .nav{ padding:10px 14px; gap:10px; }
+    .brandmark{ gap:8px; min-width:0; }
+    .brandmark img{ width:38px; height:38px; }
+    .brandmark .ar{ font-size:16px; white-space:nowrap; }
+    .brandmark .en{ display:none; }
+    .nav > div:last-child{ gap:6px !important; flex-shrink:0; }
+    .nav > div:last-child > a.btn{ display:none; }
+    .brand-menu-dropdown{
+      position:fixed; top:64px; right:12px; left:auto;
+      min-width:0; width:min(260px, calc(100vw - 24px));
+    }
+  }
+  @media (max-width:640px){
+    .nav .cart-btn, .nav .brand-menu-btn{ width:36px; height:36px; }
+    .nav .cart-btn svg{ width:18px; height:18px; }
+  }
+  @media (max-width:430px){
+    .brandmark .names{ display:none; }
+  }
+
   .btn{
     font-family:var(--body);
     font-size:13.5px; font-weight:600;
@@ -421,7 +450,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
 
   /* ---------- CART BUTTON ---------- */
   .cart-btn{
-    position:relative; all:unset; cursor:pointer;
+    all:unset; position:relative; cursor:pointer;
     width:42px; height:42px; display:flex; align-items:center; justify-content:center;
     border:1px solid var(--line); border-radius:50%; color:var(--bone);
     transition:border-color .2s ease, color .2s ease;
@@ -558,7 +587,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   @media (max-width:600px){ .pm-visual{ border-left:none; border-bottom:1px solid var(--line); padding:28px; } }
   .pm-visual .pm-icon{ width:130px; height:190px; }
   .pm-close{
-    position:absolute; top:14px; left:14px; all:unset; cursor:pointer;
+    all:unset; position:absolute; top:14px; left:14px; cursor:pointer;
     width:32px; height:32px; display:flex; align-items:center; justify-content:center;
     border:1px solid var(--line); border-radius:50%; color:var(--bone-dim); font-size:18px; line-height:1;
     background:var(--panel);
@@ -601,8 +630,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
 
   /* ---------- LIGHT AI SUPPORT CHAT ---------- */
   .light-btn{
-    position:fixed; left:24px; bottom:24px; z-index:150;
-    all:unset; cursor:pointer;
+    all:unset; position:fixed; left:24px; bottom:24px; z-index:150; cursor:pointer;
     width:60px; height:60px; border-radius:50%;
     background:linear-gradient(160deg, var(--gold-bright), var(--gold-dim));
     display:flex; align-items:center; justify-content:center;
@@ -694,8 +722,8 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
 
   /* ---------- LIGHT AI SUPPORT CHAT ---------- */
   .light-btn{
-    position:fixed; bottom:24px; left:24px; z-index:190;
-    width:58px; height:58px; border-radius:50%; all:unset; cursor:pointer;
+    all:unset; position:fixed; bottom:24px; left:24px; z-index:190;
+    width:58px; height:58px; border-radius:50%; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
     background:var(--gold); color:var(--black);
     box-shadow:0 6px 22px rgba(201,162,39,0.4);
