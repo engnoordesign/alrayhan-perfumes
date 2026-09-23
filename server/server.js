@@ -438,6 +438,137 @@ app.delete('/api/admin/brands/:key/photo', requireAdmin, (req, res) => {
 });
 
 /* ---------------------------------------------------------
+   advertisements — slides shown first in the homepage
+   showcase, managed from the admin app's الإعلانات tab
+   --------------------------------------------------------- */
+const AD_EFFECTS = ['none', 'zoom', 'pan', 'float', 'shine', 'sparkle', 'glow'];
+const AD_THEMES = ['both', 'dark', 'light'];
+
+function cleanAd(body, ad) {
+  ad = ad || {};
+  if (typeof body.title === 'string') ad.title = body.title.trim().slice(0, 120);
+  if (typeof body.desc === 'string') ad.desc = body.desc.trim().slice(0, 400);
+  if (typeof body.buttonText === 'string') ad.buttonText = body.buttonText.trim().slice(0, 40);
+  if (typeof body.link === 'string') {
+    const link = body.link.trim().slice(0, 300);
+    // only store-internal paths, brand links, or http(s) URLs — never javascript: etc.
+    ad.link = /^(https?:\/\/|\/|brand:)/i.test(link) ? link : '';
+  }
+  if (typeof body.effect === 'string') ad.effect = AD_EFFECTS.includes(body.effect) ? body.effect : 'none';
+  if (typeof body.theme === 'string') ad.theme = AD_THEMES.includes(body.theme) ? body.theme : 'both';
+  if (typeof body.color === 'string' && /^#[0-9a-f]{6}$/i.test(body.color)) ad.color = body.color;
+  if (typeof body.active === 'boolean') ad.active = body.active;
+  return ad;
+}
+
+function sortedAds() {
+  return readTable('ads').sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+function removeAdImage(ad) {
+  if (ad && ad.imageUrl) {
+    fs.unlink(path.join(__dirname, ad.imageUrl.replace(/^\/uploads\//, 'uploads/')), () => {});
+    delete ad.imageUrl;
+  }
+}
+
+/* public: only the ads switched on */
+app.get('/api/ads', (req, res) => {
+  res.json(sortedAds().filter(a => a.active !== false));
+});
+
+app.get('/api/admin/ads', requireAdmin, (req, res) => {
+  res.json(sortedAds());
+});
+
+app.post('/api/admin/ads', requireAdmin, (req, res) => {
+  const ads = readTable('ads');
+  const ad = cleanAd(req.body || {}, {
+    id: genId('ad'), effect: 'zoom', theme: 'both', color: '#C9A227', active: true, createdAt: Date.now()
+  });
+  if (!ad.title) return res.status(400).json({ error: 'عنوان الإعلان مطلوب' });
+  ad.order = ads.reduce((m, a) => Math.max(m, a.order || 0), -1) + 1;
+  ads.push(ad);
+  writeTable('ads', ads);
+  res.status(201).json(ad);
+});
+
+app.put('/api/admin/ads/:id', requireAdmin, (req, res) => {
+  const ads = readTable('ads');
+  const ad = ads.find(a => a.id === req.params.id);
+  if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود' });
+  const before = ad.title;
+  cleanAd(req.body || {}, ad);
+  if (!ad.title) ad.title = before;
+  writeTable('ads', ads);
+  res.json(ad);
+});
+
+/* move an ad one step up (dir: -1) or down (dir: 1) in the showcase order */
+app.post('/api/admin/ads/:id/move', requireAdmin, (req, res) => {
+  const ads = sortedAds();
+  const i = ads.findIndex(a => a.id === req.params.id);
+  if (i === -1) return res.status(404).json({ error: 'الإعلان غير موجود' });
+  const j = i + (Number((req.body || {}).dir) < 0 ? -1 : 1);
+  if (j >= 0 && j < ads.length) [ads[i], ads[j]] = [ads[j], ads[i]];
+  ads.forEach((a, k) => { a.order = k; });
+  writeTable('ads', ads);
+  res.json(ads);
+});
+
+app.delete('/api/admin/ads/:id', requireAdmin, (req, res) => {
+  const ads = readTable('ads');
+  const idx = ads.findIndex(a => a.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'الإعلان غير موجود' });
+  removeAdImage(ads[idx]);
+  ads.splice(idx, 1);
+  writeTable('ads', ads);
+  res.json({ ok: true });
+});
+
+const uploadAdPhoto = multer({
+  storage: multer.diskStorage({
+    destination: path.join(__dirname, 'uploads'),
+    filename: (req, file, cb) => {
+      const safeId = String(req.params.id).replace(/[^\w-]/g, '');
+      const ext = (path.extname(file.originalname) || '.jpg').toLowerCase().replace(/[^.\w]/g, '');
+      cb(null, `ad_${safeId}_${Date.now()}${ext}`);
+    }
+  }),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) return cb(null, true);
+    cb(new Error('نوع الملف غير مدعوم — استخدم صورة JPG أو PNG أو WEBP أو GIF.'));
+  }
+});
+
+app.post('/api/admin/ads/:id/photo', requireAdmin, (req, res) => {
+  uploadAdPhoto.single('photo')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message || 'تعذر رفع الصورة' });
+    const ads = readTable('ads');
+    const ad = ads.find(a => a.id === req.params.id);
+    if (!ad) {
+      if (req.file) fs.unlink(req.file.path, () => {});
+      return res.status(404).json({ error: 'الإعلان غير موجود' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'لم يتم إرسال صورة' });
+    removeAdImage(ad);
+    ad.imageUrl = `/uploads/${req.file.filename}`;
+    writeTable('ads', ads);
+    res.json(ad);
+  });
+});
+
+app.delete('/api/admin/ads/:id/photo', requireAdmin, (req, res) => {
+  const ads = readTable('ads');
+  const ad = ads.find(a => a.id === req.params.id);
+  if (!ad) return res.status(404).json({ error: 'الإعلان غير موجود' });
+  removeAdImage(ad);
+  writeTable('ads', ads);
+  res.json(ad);
+});
+
+/* ---------------------------------------------------------
    admin: stats + orders list
 --------------------------------------------------------- */
 app.get('/api/admin/stats', requireAdmin, (req, res) => {
