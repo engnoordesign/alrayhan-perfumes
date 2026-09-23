@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const { readTable, writeTable } = require('./db');
 const { initMailer, verifyMailer, sendOrderEmail } = require('./mailer');
 const { checkAgentAvailable, streamAgent, productsMentioned } = require('./agent');
+const whatsapp = require('./whatsapp');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -114,23 +115,51 @@ function requireUser(req, res, next) {
   next();
 }
 
-app.post('/api/auth/phone/send-code', (req, res) => {
-  const phone = String((req.body || {}).phone || '').trim();
-  if (!/^0?7\d{9}$/.test(phone.replace(/\s/g, ''))) {
+/* sign-up / login code: sent by WhatsApp when it's configured in .env,
+   otherwise shown on screen (local demo mode) */
+const OTP_RESEND_MS = 60 * 1000;
+const OTP_MAX_TRIES = 5;
+
+app.post('/api/auth/phone/send-code', async (req, res) => {
+  const phone = String((req.body || {}).phone || '').replace(/\s/g, '');
+  if (!/^0?7\d{9}$/.test(phone)) {
     return res.status(400).json({ error: 'رقم هاتف غير صحيح' });
   }
-  const code = String(Math.floor(1000 + Math.random() * 9000));
-  otpStore.set(phone, { code, expiresAt: Date.now() + 5 * 60 * 1000 });
-  // dev-mode only: real deployments must NOT return the code in the response
-  res.json({ ok: true, devCode: code });
+  const prev = otpStore.get(phone);
+  if (prev && Date.now() - prev.sentAt < OTP_RESEND_MS) {
+    const wait = Math.ceil((OTP_RESEND_MS - (Date.now() - prev.sentAt)) / 1000);
+    return res.status(429).json({ error: `انتظر ${wait} ثانية قبل طلب كود جديد` });
+  }
+  const code = String(crypto.randomInt(100000, 1000000)); // 6 digits
+  const entry = { code, expiresAt: Date.now() + 5 * 60 * 1000, sentAt: Date.now(), tries: 0 };
+
+  if (whatsapp.isConfigured()) {
+    try {
+      await whatsapp.sendOtp(phone, code);
+    } catch (e) {
+      console.warn('  ⚠️ WhatsApp OTP failed:', e.message);
+      return res.status(502).json({ error: 'تعذر إرسال الكود عبر واتساب — تأكد أن الرقم عليه واتساب وحاول مجدداً' });
+    }
+    otpStore.set(phone, entry);
+    return res.json({ ok: true, channel: 'whatsapp' });
+  }
+
+  // demo mode (no WhatsApp settings): the code is returned so it can be shown on screen
+  otpStore.set(phone, entry);
+  res.json({ ok: true, channel: 'demo', devCode: code });
 });
 
 app.post('/api/auth/phone/verify', (req, res) => {
-  const phone = String((req.body || {}).phone || '').trim();
+  const phone = String((req.body || {}).phone || '').replace(/\s/g, '');
   const code = String((req.body || {}).code || '').trim();
   const entry = otpStore.get(phone);
-  if (!entry || entry.code !== code || entry.expiresAt < Date.now()) {
+  if (!entry || entry.expiresAt < Date.now()) {
     return res.status(400).json({ error: 'الكود غير صحيح أو منتهي' });
+  }
+  if (entry.code !== code) {
+    entry.tries = (entry.tries || 0) + 1;
+    if (entry.tries >= OTP_MAX_TRIES) otpStore.delete(phone);
+    return res.status(400).json({ error: entry.tries >= OTP_MAX_TRIES ? 'محاولات كثيرة — اطلب كوداً جديداً' : 'الكود غير صحيح أو منتهي' });
   }
   otpStore.delete(phone);
 
