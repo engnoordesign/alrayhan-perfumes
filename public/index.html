@@ -299,7 +299,21 @@ html[data-theme="light"] .hero .ad-slide .btn.solid{ color:#FFFDF7; }
 @keyframes adSpark{ 0%,100%{ opacity:0; transform:scale(.4);} 50%{ opacity:1; transform:scale(1);} }
 @keyframes adGlow{ 0%,100%{ opacity:.45; transform:translate(-50%,-50%) scale(.9);} 50%{ opacity:1; transform:translate(-50%,-50%) scale(1.08);} }
 
-  /* ---------- LOGO: dark/light versions, centred emblem ---------- */
+  /* ---------- HERO SHOWCASE FOLLOWS THE THEME ----------
+   In light mode the whole showcase (brand slides and ads) switches to the
+   warm ivory palette, so it stays in sync with the rest of the site. */
+html[data-theme="light"] .hero{
+  --black:#F7F3E9; --panel:#FFFDF7; --panel-2:#F1EADA;
+  --gold:#A67C1E; --gold-bright:#8A6414; --gold-dim:#C9A227;
+  --leaf:#4E6B45; --bone:#2A241C; --bone-dim:#4E4538;
+  --line: rgba(166,124,30,0.28);
+  box-shadow:0 18px 50px rgba(60,50,35,0.10);
+}
+html[data-theme="light"] .hero .slide-icon{ filter:drop-shadow(0 4px 14px rgba(60,50,35,0.18)); }
+html[data-theme="light"] .hero .btn.solid{ color:#FFFDF7; }
+html[data-theme="light"] .hero-dot{ background:rgba(42,36,28,0.16); }
+
+/* ---------- LOGO: dark/light versions, centred emblem ---------- */
 html[data-theme="light"] .logo-dark,
 html:not([data-theme="light"]) .logo-light{ display:none !important; }
 .logo-dark, .logo-light{ object-position:center !important; }
