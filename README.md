@@ -110,6 +110,13 @@ the logo.
   removed. The three-part scent pyramid on each product's own preview card is unaffected and
   still works the same way.
 
+## Sign up with phone or email
+
+The sign-in window has two tabs: **رقم الهاتف** (code sent by WhatsApp) and
+**البريد الإلكتروني** (code sent by email using the same SMTP settings as order emails).
+Both use 6-digit codes that expire after 5 minutes. If WhatsApp or SMTP isn't set up yet,
+that option runs in demo mode and shows the code on screen.
+
 ## WhatsApp verification codes (sign-up OTP)
 
 When a customer signs up with their phone number, the 6-digit code is sent to them on
