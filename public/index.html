@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>عطور الريحان | ALRAYHAN PERFUMES</title>
-<link rel="icon" href="alrayhan_perfumes_logo.jpg">
+<link rel="icon" href="logo-dark.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400;1,700&family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -299,7 +299,12 @@ html[data-theme="light"] .hero .ad-slide .btn.solid{ color:#FFFDF7; }
 @keyframes adSpark{ 0%,100%{ opacity:0; transform:scale(.4);} 50%{ opacity:1; transform:scale(1);} }
 @keyframes adGlow{ 0%,100%{ opacity:.45; transform:translate(-50%,-50%) scale(.9);} 50%{ opacity:1; transform:translate(-50%,-50%) scale(1.08);} }
 
-  /* ---------- SECTIONS ---------- */
+  /* ---------- LOGO: dark/light versions, centred emblem ---------- */
+html[data-theme="light"] .logo-dark,
+html:not([data-theme="light"]) .logo-light{ display:none !important; }
+.logo-dark, .logo-light{ object-position:center !important; }
+
+/* ---------- SECTIONS ---------- */
   section{ padding:100px 0; position:relative; }
   .section-head{ max-width:680px; margin-bottom:48px; }
   .section-head .eyebrow{ display:block; margin-bottom:14px; }
@@ -946,7 +951,7 @@ html[data-theme="light"] .hero .ad-slide .btn.solid{ color:#FFFDF7; }
 <header>
   <nav class="nav">
     <div class="brandmark">
-      <img src="alrayhan_perfumes_logo.jpg" alt="شعار عطور الريحان">
+      <img class="logo-dark" src="logo-dark.png" alt="شعار عطور الريحان"><img class="logo-light" src="logo-light.png" alt="شعار عطور الريحان">
       <div class="names">
         <div class="ar">عطور الريحان</div>
         <div class="en">ALRAYHAN PERFUMES</div>
@@ -1293,7 +1298,7 @@ html[data-theme="light"] .hero .ad-slide .btn.solid{ color:#FFFDF7; }
     <div class="footer-grid">
       <div>
         <div class="footer-brand">
-          <img src="alrayhan_perfumes_logo.jpg" alt="شعار عطور الريحان">
+          <img class="logo-dark" src="logo-dark.png" alt="شعار عطور الريحان"><img class="logo-light" src="logo-light.png" alt="شعار عطور الريحان">
           <div>
             <div style="font-family:var(--display); font-size:18px; color:var(--gold-bright); font-weight:700;">عطور الريحان</div>
             <div style="font-size:10.5px; letter-spacing:0.12em; color:var(--bone-dim);">ALRAYHAN PERFUMES</div>
@@ -2877,7 +2882,9 @@ function adFxMarkup(effect){
 
 function adSlideHTML(s, i){
   const a = s.ad;
-  const effect = ['none','zoom','pan','float','shine','sparkle','glow'].includes(a.effect) ? a.effect : 'none';
+  const effect = ['none','brand','zoom','pan','float','shine','sparkle','glow'].includes(a.effect) ? a.effect : 'none';
+  const bKey = a.brand && brandMeta[a.brand] ? a.brand : '';
+  const brandFx = effect === 'brand' && bKey;
   const color = /^#[0-9a-f]{6}$/i.test(a.color || '') ? a.color : '#C9A227';
   const img = a.imageUrl && /^\/uploads\/[\w.\-]+$/.test(a.imageUrl) ? a.imageUrl : '';
   let cta = '';
@@ -2890,11 +2897,11 @@ function adSlideHTML(s, i){
     }
   }
   return `
-    <div class="hero-slide ad-slide fx-${effect}${i===0?' active':''}" data-i="${i}" style="--ad:${color}">
+    <div class="hero-slide ad-slide fx-${effect}${brandFx ? ' hs-' + bKey : ''}${i===0?' active':''}" data-i="${i}" style="--ad:${color}">
       <div class="slide-bg ad-bg"${img ? ` style="background-image:url('${img}')"` : ''}></div>
       <div class="ad-shade"></div>
-      <div class="slide-fx">${adFxMarkup(effect)}</div>
-      <div class="slide-content ad-copy">
+      <div class="slide-fx">${brandFx && !img ? heroFxHTML(bKey) : adFxMarkup(effect)}</div>
+      <div class="slide-content ad-copy">${bKey ? `<div class="slide-icon">${brandIcon(bKey)}</div>` : ''}
         <h2 class="slide-title">${heroEsc(a.title)}</h2>
         ${a.desc ? `<p class="slide-desc">${heroEsc(a.desc)}</p>` : ''}
         ${cta}
@@ -2921,6 +2928,8 @@ function adSlideHTML(s, i){
      call, so adding/removing/renaming a brand (or giving it an
      advertising photo) in the admin app is reflected immediately. */
   function getHeroSlides(){
+  /* once ads exist they fully drive the showcase (brand slides were imported as ads) */
+  if(heroAds.some(a => a && a.active !== false)) return [];
     return brandOrder
       .filter(key => brandMeta[key])
       .map(key => ({
