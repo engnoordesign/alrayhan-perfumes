@@ -161,4 +161,29 @@ async function sendOrderEmail(order) {
   }
 }
 
-module.exports = { initMailer, verifyMailer, sendOrderEmail };
+/* sign-up verification code by email */
+function isMailConfigured() {
+  return Boolean(transporter);
+}
+
+async function sendOtpEmail(to, code) {
+  if (!transporter) throw new Error('mail is not configured');
+  const html = `
+  <div dir="rtl" style="font-family:Tahoma,Arial,sans-serif; background:#F7F3E9; padding:24px; color:#2A241C;">
+    <div style="max-width:460px; margin:0 auto; background:#FFFDF7; border:1px solid rgba(166,124,30,0.35); border-radius:10px; padding:28px 24px; text-align:center;">
+      <h1 style="margin:0 0 6px; font-size:20px; color:#8A6414;">عطور الريحان</h1>
+      <p style="margin:0 0 20px; font-size:13px; color:#6E6354;">كود التحقق الخاص بك لإنشاء الحساب أو تسجيل الدخول:</p>
+      <div style="font-size:32px; font-weight:bold; letter-spacing:10px; color:#2A241C; background:#F1EADA; border-radius:8px; padding:14px 0; direction:ltr;">${code}</div>
+      <p style="margin:18px 0 0; font-size:12px; color:#6E6354;">الكود صالح لمدة 5 دقائق. إذا لم تطلب هذا الكود، تجاهل هذه الرسالة.</p>
+    </div>
+  </div>`;
+  await transporter.sendMail({
+    from: process.env.MAIL_FROM || process.env.SMTP_USER,
+    to,
+    subject: `كود التحقق: ${code} — عطور الريحان`,
+    text: `كود التحقق الخاص بك في عطور الريحان هو: ${code}\nصالح لمدة 5 دقائق.`,
+    html
+  });
+}
+
+module.exports = { initMailer, verifyMailer, sendOrderEmail, isMailConfigured, sendOtpEmail };

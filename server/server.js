@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { readTable, writeTable } = require('./db');
-const { initMailer, verifyMailer, sendOrderEmail } = require('./mailer');
+const { initMailer, verifyMailer, sendOrderEmail, isMailConfigured, sendOtpEmail } = require('./mailer');
 const { checkAgentAvailable, streamAgent, productsMentioned } = require('./agent');
 const whatsapp = require('./whatsapp');
 
@@ -169,6 +169,68 @@ app.post('/api/auth/phone/verify', (req, res) => {
   const token = genId('usrtok');
   if (!user) {
     user = { id: genId('user'), key, method: 'phone', phone, name: 'زبون عطور الريحان', wallet: 0, transactions: [], token };
+    users.push(user);
+  } else {
+    user.token = token;
+  }
+  writeTable('users', users);
+  res.json({ token, user: publicUser(user) });
+});
+
+/* ---- sign up / log in with an email address + a code sent by email ---- */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+app.post('/api/auth/email/send-code', async (req, res) => {
+  const email = String((req.body || {}).email || '').trim().toLowerCase();
+  if (!EMAIL_RE.test(email) || email.length > 200) {
+    return res.status(400).json({ error: 'بريد إلكتروني غير صحيح' });
+  }
+  const key = 'email:' + email;
+  const prev = otpStore.get(key);
+  if (prev && Date.now() - prev.sentAt < OTP_RESEND_MS) {
+    const wait = Math.ceil((OTP_RESEND_MS - (Date.now() - prev.sentAt)) / 1000);
+    return res.status(429).json({ error: `انتظر ${wait} ثانية قبل طلب كود جديد` });
+  }
+  const code = String(crypto.randomInt(100000, 1000000));
+  const entry = { code, expiresAt: Date.now() + 5 * 60 * 1000, sentAt: Date.now(), tries: 0 };
+
+  if (isMailConfigured()) {
+    try {
+      await sendOtpEmail(email, code);
+    } catch (e) {
+      console.warn('  ⚠️ OTP email failed:', e.message);
+      return res.status(502).json({ error: 'تعذر إرسال الكود إلى بريدك — تأكد من العنوان وحاول مجدداً' });
+    }
+    otpStore.set(key, entry);
+    return res.json({ ok: true, channel: 'email' });
+  }
+
+  // demo mode (SMTP not configured): show the code on screen
+  otpStore.set(key, entry);
+  res.json({ ok: true, channel: 'demo', devCode: code });
+});
+
+app.post('/api/auth/email/verify', (req, res) => {
+  const email = String((req.body || {}).email || '').trim().toLowerCase();
+  const code = String((req.body || {}).code || '').trim();
+  const otpKey = 'email:' + email;
+  const entry = otpStore.get(otpKey);
+  if (!entry || entry.expiresAt < Date.now()) {
+    return res.status(400).json({ error: 'الكود غير صحيح أو منتهي' });
+  }
+  if (entry.code !== code) {
+    entry.tries = (entry.tries || 0) + 1;
+    if (entry.tries >= OTP_MAX_TRIES) otpStore.delete(otpKey);
+    return res.status(400).json({ error: entry.tries >= OTP_MAX_TRIES ? 'محاولات كثيرة — اطلب كوداً جديداً' : 'الكود غير صحيح أو منتهي' });
+  }
+  otpStore.delete(otpKey);
+
+  const users = readTable('users');
+  const key = 'email:' + email;
+  let user = findUserByKey(users, key);
+  const token = genId('usrtok');
+  if (!user) {
+    user = { id: genId('user'), key, method: 'email', email, name: 'زبون عطور الريحان', wallet: 0, transactions: [], token };
     users.push(user);
   } else {
     user.token = token;
