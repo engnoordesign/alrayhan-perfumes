@@ -1,0 +1,90 @@
+[
+  {
+    "key": "ibraq",
+    "label": "آي براق — مجموعة الماس",
+    "tag": "Ibraq Diamond Collection",
+    "color": "#C9A227",
+    "order": 0,
+    "custom": false
+  },
+  {
+    "key": "assaf",
+    "label": "عساف Assaf",
+    "tag": "Frankel · Arrogate · Wild Colt",
+    "color": "#8B2E3C",
+    "order": 1,
+    "custom": false
+  },
+  {
+    "key": "armaf",
+    "label": "أرماف Armaf",
+    "tag": "Club de Nuit",
+    "color": "#3E6B8A",
+    "order": 2,
+    "custom": false
+  },
+  {
+    "key": "afnan",
+    "label": "أفنان 9 Afnan",
+    "tag": "9pm · 9am",
+    "color": "#6B4A8A",
+    "order": 3,
+    "custom": false
+  },
+  {
+    "key": "hawas",
+    "label": "رصاصي هواس Rasasi Hawas",
+    "tag": "",
+    "color": "#2E8B7A",
+    "order": 4,
+    "custom": false
+  },
+  {
+    "key": "alhambra",
+    "label": "ميزون الحمبرا Maison Alhambra",
+    "tag": "",
+    "color": "#B87A6B",
+    "order": 5,
+    "custom": false
+  },
+  {
+    "key": "bold",
+    "label": "لطافة بولد Lattafa Bold",
+    "tag": "Intense · Hard · Green",
+    "color": "#4A5A3C",
+    "order": 6,
+    "custom": false
+  },
+  {
+    "key": "nightdeparis",
+    "label": "نايت دو باريس Night De Paris",
+    "tag": "",
+    "color": "#7A3B52",
+    "order": 7,
+    "custom": false
+  },
+  {
+    "key": "aurora",
+    "label": "أورورا Aurora",
+    "tag": "",
+    "color": "#D98C3B",
+    "order": 8,
+    "custom": false
+  },
+  {
+    "key": "nitro",
+    "label": "نيترو Nitro — Dumont Paris",
+    "tag": "Platinum · Green · Black · Blue · White",
+    "color": "#6E6A62",
+    "order": 9,
+    "custom": false
+  },
+  {
+    "key": "designer",
+    "label": "عطور عالمية أصلية",
+    "tag": "Designer Originals",
+    "color": "#C9A227",
+    "order": 10,
+    "custom": false
+  }
+]

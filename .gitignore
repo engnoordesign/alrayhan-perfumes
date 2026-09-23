@@ -1,0 +1,28 @@
+# ---- dependencies (re-created by `npm install`) ----
+node_modules/
+package-lock.json
+
+# ---- secrets: NEVER commit these ----
+# .env holds your admin password, email password, etc.
+.env
+*.env
+!.env.example
+
+# ---- private customer data (lives only on your machine/server) ----
+server/data/users.json
+server/data/orders.json
+
+# ---- uploaded photos (back these up separately, see HOSTING-GUIDE.md) ----
+server/uploads/*
+!server/uploads/.gitkeep
+
+# ---- logs & OS clutter ----
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+server/.env
