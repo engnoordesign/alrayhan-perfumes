@@ -100,7 +100,7 @@ function findUserByToken(users, token) {
 }
 function publicUser(u) {
   if (!u) return null;
-  const { token, ...rest } = u;
+  const { token, passHash, passSalt, ...rest } = u;
   return rest;
 }
 
@@ -237,6 +237,236 @@ app.post('/api/auth/email/verify', (req, res) => {
   }
   writeTable('users', users);
   res.json({ token, user: publicUser(user) });
+});
+
+/* ---------------------------------------------------------
+   accounts with username + password. Sign-up is confirmed with a
+   one-time code sent to the phone (WhatsApp) or email the user
+   chooses. Log in with username / phone / email + password.
+   --------------------------------------------------------- */
+const USERNAME_RE = /^[A-Za-z0-9_.]{3,20}$/;
+const pendingSignups = new Map(); // contactKey -> { username, passHash, passSalt, code, expiresAt, sentAt, tries }
+
+function hashPassword(password, salt) {
+  salt = salt || crypto.randomBytes(16).toString('hex');
+  const passHash = crypto.scryptSync(String(password), salt, 64).toString('hex');
+  return { passHash, passSalt: salt };
+}
+function checkPassword(user, password) {
+  if (!user || !user.passHash || !user.passSalt) return false;
+  const { passHash } = hashPassword(password, user.passSalt);
+  return crypto.timingSafeEqual(Buffer.from(passHash, 'hex'), Buffer.from(user.passHash, 'hex'));
+}
+function normPhone(p) { return String(p || '').replace(/\D/g, '').replace(/^964/, '0').replace(/^7/, '07'); }
+function contactKeyOf(method, contact) {
+  return method === 'email' ? 'email:' + String(contact).trim().toLowerCase() : 'phone:' + normPhone(contact).replace(/\D/g, '');
+}
+function findByUsername(users, username) {
+  const u = String(username || '').toLowerCase();
+  return users.find(x => x.username && x.username.toLowerCase() === u);
+}
+function findByContact(users, method, contact) {
+  if (method === 'email') {
+    const e = String(contact).trim().toLowerCase();
+    return users.find(x => x.key === 'email:' + e || (x.email && x.email.toLowerCase() === e));
+  }
+  const ph = normPhone(contact).replace(/\D/g, '');
+  return users.find(x => x.key === 'phone:' + ph || (x.phone && normPhone(x.phone).replace(/\D/g, '') === ph));
+}
+
+/* sends a code by WhatsApp (phone) or email; returns the channel used */
+async function deliverCode(method, contact, code) {
+  if (method === 'email') {
+    if (!isMailConfigured()) return 'demo';
+    await sendOtpEmail(String(contact).trim(), code);
+    return 'email';
+  }
+  if (!whatsapp.isConfigured()) return 'demo';
+  await whatsapp.sendOtp(normPhone(contact), code);
+  return 'whatsapp';
+}
+
+app.get('/api/auth/username-available', (req, res) => {
+  const username = String(req.query.u || '').trim();
+  if (!USERNAME_RE.test(username)) return res.json({ available: false, reason: 'invalid' });
+  res.json({ available: !findByUsername(readTable('users'), username) });
+});
+
+app.post('/api/auth/register/start', async (req, res) => {
+  const body = req.body || {};
+  const username = String(body.username || '').trim();
+  const password = String(body.password || '');
+  const method = body.method === 'email' ? 'email' : 'phone';
+  const contact = String(body.contact || '').trim();
+
+  if (!USERNAME_RE.test(username)) {
+    return res.status(400).json({ error: 'اسم المستخدم من 3 إلى 20 حرفاً إنجليزياً أو رقماً (ويُسمح بـ _ و .)' });
+  }
+  if (password.length < 8) return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' });
+  if (typeof body.confirm === 'string' && body.confirm !== password) {
+    return res.status(400).json({ error: 'تأكيد كلمة المرور غير مطابق' });
+  }
+  if (method === 'email' ? !EMAIL_RE.test(contact) : !/^0?7\d{9}$/.test(contact.replace(/\s/g, ''))) {
+    return res.status(400).json({ error: method === 'email' ? 'بريد إلكتروني غير صحيح' : 'رقم هاتف غير صحيح' });
+  }
+
+  const users = readTable('users');
+  const taken = findByUsername(users, username);
+  if (taken) return res.status(409).json({ error: 'اسم المستخدم محجوز — اختر اسماً آخر' });
+  const existing = findByContact(users, method, contact);
+  if (existing && existing.passHash) {
+    return res.status(409).json({ error: method === 'email' ? 'هذا البريد مسجّل مسبقاً — سجّل الدخول' : 'هذا الرقم مسجّل مسبقاً — سجّل الدخول' });
+  }
+  // another pending sign-up already reserved this username
+  for (const [k, v] of pendingSignups) {
+    if (v.expiresAt > Date.now() && v.username.toLowerCase() === username.toLowerCase() && k !== contactKeyOf(method, contact)) {
+      return res.status(409).json({ error: 'اسم المستخدم محجوز — اختر اسماً آخر' });
+    }
+  }
+
+  const ckey = contactKeyOf(method, contact);
+  const prev = pendingSignups.get(ckey);
+  if (prev && Date.now() - prev.sentAt < OTP_RESEND_MS) {
+    const wait = Math.ceil((OTP_RESEND_MS - (Date.now() - prev.sentAt)) / 1000);
+    return res.status(429).json({ error: `انتظر ${wait} ثانية قبل طلب كود جديد` });
+  }
+  const code = String(crypto.randomInt(100000, 1000000));
+  let channel;
+  try {
+    channel = await deliverCode(method, contact, code);
+  } catch (e) {
+    console.warn('  ⚠️ sign-up code failed:', e.message);
+    return res.status(502).json({ error: 'تعذر إرسال كود التحقق — تأكد من البيانات وحاول مجدداً' });
+  }
+  pendingSignups.set(ckey, {
+    username, method, contact, ...hashPassword(password),
+    code, expiresAt: Date.now() + 10 * 60 * 1000, sentAt: Date.now(), tries: 0
+  });
+  res.json(channel === 'demo' ? { ok: true, channel, devCode: code } : { ok: true, channel });
+});
+
+app.post('/api/auth/register/verify', (req, res) => {
+  const body = req.body || {};
+  const method = body.method === 'email' ? 'email' : 'phone';
+  const ckey = contactKeyOf(method, body.contact || '');
+  const code = String(body.code || '').trim();
+  const pending = pendingSignups.get(ckey);
+  if (!pending || pending.expiresAt < Date.now()) {
+    return res.status(400).json({ error: 'الكود غير صحيح أو منتهي — ابدأ التسجيل من جديد' });
+  }
+  if (pending.code !== code) {
+    pending.tries += 1;
+    if (pending.tries >= OTP_MAX_TRIES) pendingSignups.delete(ckey);
+    return res.status(400).json({ error: pending.tries >= OTP_MAX_TRIES ? 'محاولات كثيرة — ابدأ التسجيل من جديد' : 'الكود غير صحيح' });
+  }
+
+  const users = readTable('users');
+  if (findByUsername(users, pending.username)) {
+    pendingSignups.delete(ckey);
+    return res.status(409).json({ error: 'اسم المستخدم محجوز — اختر اسماً آخر' });
+  }
+  const token = genId('usrtok');
+  let user = findByContact(users, method, pending.contact);
+  if (user && user.passHash) {
+    pendingSignups.delete(ckey);
+    return res.status(409).json({ error: 'هذا الحساب مسجّل مسبقاً — سجّل الدخول' });
+  }
+  if (!user) {
+    user = { id: genId('user'), key: ckey, method, name: pending.username, wallet: 0, transactions: [] };
+    users.push(user);
+  }
+  // an older code-only account with this phone/email is upgraded in place (keeps wallet & orders)
+  user.username = pending.username;
+  user.passHash = pending.passHash;
+  user.passSalt = pending.passSalt;
+  if (method === 'email') user.email = String(pending.contact).trim().toLowerCase();
+  else user.phone = normPhone(pending.contact);
+  if (!user.name || user.name === 'زبون عطور الريحان') user.name = pending.username;
+  user.verified = true;
+  user.token = token;
+  writeTable('users', users);
+  pendingSignups.delete(ckey);
+  res.status(201).json({ token, user: publicUser(user) });
+});
+
+const loginFails = new Map(); // login -> { n, until }
+app.post('/api/auth/login', (req, res) => {
+  const login = String((req.body || {}).login || '').trim();
+  const password = String((req.body || {}).password || '');
+  if (!login || !password) return res.status(400).json({ error: 'أدخل اسم المستخدم وكلمة المرور' });
+  const lk = login.toLowerCase();
+  const f = loginFails.get(lk);
+  if (f && f.until > Date.now()) {
+    return res.status(429).json({ error: 'محاولات كثيرة — حاول بعد بضع دقائق' });
+  }
+  const users = readTable('users');
+  let user = findByUsername(users, login);
+  if (!user && login.includes('@')) user = findByContact(users, 'email', login);
+  if (!user && /^[\d+\s]+$/.test(login)) user = findByContact(users, 'phone', login);
+  if (!checkPassword(user, password)) {
+    const n = ((f && f.n) || 0) + 1;
+    loginFails.set(lk, { n, until: n >= 5 ? Date.now() + 5 * 60 * 1000 : 0 });
+    return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+  }
+  loginFails.delete(lk);
+  user.token = genId('usrtok');
+  writeTable('users', users);
+  res.json({ token: user.token, user: publicUser(user) });
+});
+
+/* ---- the signed-in customer's orders, favourites and pre-orders ---- */
+app.get('/api/me/orders', requireUser, (req, res) => {
+  const mine = readTable('orders')
+    .filter(o => o.userKey === req.user.key)
+    .sort((a, b) => b.createdAt - a.createdAt);
+  res.json(mine);
+});
+
+app.get('/api/me/favorites', requireUser, (req, res) => {
+  res.json(req.user.favorites || []);
+});
+app.put('/api/me/favorites', requireUser, (req, res) => {
+  const ids = Array.isArray((req.body || {}).ids) ? req.body.ids : [];
+  const known = new Set(readTable('products').map(p => p.id));
+  req.user.favorites = [...new Set(ids.map(String))].filter(id => known.has(id)).slice(0, 300);
+  writeTable('users', req.users);
+  res.json(req.user.favorites);
+});
+
+app.get('/api/me/preorders', requireUser, (req, res) => {
+  res.json((req.user.preorders || []).slice().sort((a, b) => b.createdAt - a.createdAt));
+});
+app.post('/api/me/preorders', requireUser, (req, res) => {
+  const productId = String((req.body || {}).productId || '');
+  const qty = Math.min(20, Math.max(1, parseInt((req.body || {}).qty, 10) || 1));
+  const product = readTable('products').find(p => p.id === productId);
+  if (!product) return res.status(404).json({ error: 'العطر غير موجود' });
+  req.user.preorders = req.user.preorders || [];
+  const open = req.user.preorders.find(x => x.productId === productId && x.status === 'waiting');
+  if (open) {
+    open.qty = qty;
+  } else {
+    req.user.preorders.push({ id: genId('pre'), productId, ar: product.ar, priceNum: product.priceNum, qty, status: 'waiting', createdAt: Date.now() });
+  }
+  writeTable('users', req.users);
+  res.status(201).json(req.user.preorders);
+});
+app.delete('/api/me/preorders/:id', requireUser, (req, res) => {
+  const list = req.user.preorders || [];
+  const item = list.find(x => x.id === req.params.id);
+  if (!item) return res.status(404).json({ error: 'الطلب المسبق غير موجود' });
+  item.status = 'cancelled';
+  writeTable('users', req.users);
+  res.json(list);
+});
+
+/* admin: every customer's pre-orders, newest first */
+app.get('/api/admin/preorders', requireAdmin, (req, res) => {
+  const out = [];
+  readTable('users').forEach(u => (u.preorders || []).forEach(p => out.push({
+    ...p, user: u.username || u.name, contact: u.phone || u.email || ''
+  })));
+  res.json(out.sort((a, b) => b.createdAt - a.createdAt));
 });
 
 app.post('/api/auth/social', (req, res) => {
@@ -763,6 +993,14 @@ app.get('/api/admin/orders', requireAdmin, (req, res) => {
   res.json(orders);
 });
 
+function orderUserKey(req) {
+  const auth = req.headers.authorization || '';
+  const t = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!t) return null;
+  const u = findUserByToken(readTable('users'), t);
+  return u ? u.key : null;
+}
+
 /* ---------------------------------------------------------
    orders / checkout — server recomputes totals & validates wallet
 --------------------------------------------------------- */
@@ -820,7 +1058,7 @@ app.post('/api/orders', async (req, res) => {
     subtotal,
     deliveryFee,
     total,
-    userKey: user ? user.key : null,
+    userKey: user ? user.key : orderUserKey(req),
     status: 'new',
     emailSent: false
   };
