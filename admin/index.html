@@ -77,6 +77,20 @@
   .topbar .brand span{ font-size:10.5px; color:var(--bone-dim); letter-spacing:.1em; }
 
   .tabs{ display:flex; gap:4px; flex-wrap:wrap; }
+  /* phones: one compact, swipeable row of tabs so the sticky bar doesn't eat the screen */
+  @media (max-width:680px){
+    .topbar{ padding:10px 12px; gap:8px; }
+    .topbar .brand img{ width:32px; height:32px; }
+    .topbar .brand b{ font-size:15px; }
+    .topbar .brand span{ display:none; }
+    .tabs{ order:3; width:100%; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; }
+    .tabs::-webkit-scrollbar{ display:none; }
+    .tab{ padding:8px 14px; font-size:12.5px; white-space:nowrap; }
+    .wrap{ padding:20px 14px 60px; }
+    .view-head h2{ font-size:21px; }
+    .row{ gap:8px; }
+    .row input.num{ width:88px; }
+  }
   .tab{
     all:unset; cursor:pointer; padding:9px 18px; border-radius:6px; font-size:13.5px; font-weight:600;
     color:var(--bone-dim); transition:background .18s, color .18s;
