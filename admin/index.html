@@ -401,6 +401,8 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
         <button class="btn ghost" id="refreshOrdersBtn" type="button">تحديث</button>
       </div>
       <div id="orderList"></div>
+      <h3 style="font-family:var(--display); font-size:19px; color:var(--gold-bright); margin:34px 0 12px;">الطلبات المسبقة (عطور غير متوفرة)</h3>
+      <div id="preorderList"></div>
     </div>
 
     <!-- STATS -->
@@ -723,6 +725,15 @@ async function loadOrders(){
     orders = await api('/api/admin/orders');
     renderOrders();
   }catch(e){ toast('تعذر تحميل الطلبات'); }
+  try{
+    const pre = await api('/api/admin/preorders');
+    const open = pre.filter(x=>x.status !== 'cancelled');
+    $('#preorderList').innerHTML = !open.length ? '<div class="empty" style="padding:24px;">لا توجد طلبات مسبقة.</div>'
+      : open.map(x=>`<div class="row">
+          <div class="nm">${esc(x.ar)} × ${x.qty}<small>${esc(x.user)} · ${esc(x.contact)} · ${new Date(x.createdAt).toLocaleString('ar-IQ')}</small></div>
+          <span class="pill new">بانتظار التوفر</span>
+        </div>`).join('');
+  }catch(e){}
 }
 
 /* ---------------- products view ---------------- */
