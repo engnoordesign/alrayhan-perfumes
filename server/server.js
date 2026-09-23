@@ -245,6 +245,13 @@ app.delete('/api/admin/brands/:key', requireAdmin, (req, res) => {
   });
   writeTable('products', remaining);
 
+  // remove this brand's showcase ads too (and their photos)
+  const brandAds = readTable('ads');
+  if (brandAds.some(a => a.brand === req.params.key)) {
+    brandAds.filter(a => a.brand === req.params.key).forEach(removeAdImage);
+    writeTable('ads', brandAds.filter(a => a.brand !== req.params.key));
+  }
+
   res.json({ ok: true, removedProducts: removedCount });
 });
 
@@ -441,7 +448,7 @@ app.delete('/api/admin/brands/:key/photo', requireAdmin, (req, res) => {
    advertisements — slides shown first in the homepage
    showcase, managed from the admin app's الإعلانات tab
    --------------------------------------------------------- */
-const AD_EFFECTS = ['none', 'zoom', 'pan', 'float', 'shine', 'sparkle', 'glow'];
+const AD_EFFECTS = ['none', 'brand', 'zoom', 'pan', 'float', 'shine', 'sparkle', 'glow'];
 const AD_THEMES = ['both', 'dark', 'light'];
 
 function cleanAd(body, ad) {
@@ -462,6 +469,7 @@ function cleanAd(body, ad) {
 }
 
 function sortedAds() {
+  ensureAdsSeeded();
   return readTable('ads').sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
@@ -471,6 +479,79 @@ function removeAdImage(ad) {
     delete ad.imageUrl;
   }
 }
+
+/* the homepage showcase used to be built only from the brands. On first run
+   those slides are imported as editable ads (same text, colour, photo and
+   the brand's original motion), so everything in the showcase is managed
+   from the الإعلانات tab. */
+const BRAND_AD_COPY = {
+  ibraq: 'عشر روائح، كل واحدة بحجر كريم يميّزها — من الماس الأزرق المنعش إلى العنبر الأسود الكثيف.',
+  assaf: 'فخامة بطابع فرنسي بلمسة شرقية جريئة، بثلاث شخصيات مختلفة تناسب كل الأذواق.',
+  armaf: 'من أشهر خطوط Club de Nuit عالمياً — حضور فاخر بسعر يناسب الجميع.',
+  afnan: 'من دفء 9pm إلى انتعاش 9am — عطر لكل ساعة من يومك.',
+  hawas: 'حمضيات جريئة تنتهي بقاعدة خشبية مائية لا تُنسى، بعدة نسخ لكل مزاج.',
+  alhambra: 'أناقة أوروبية بخطوط متعددة، من الزهري الناعم إلى الخشبي القوي.',
+  bold: 'لمن يريد الحضور القوي من أول رشة حتى آخر النهار.',
+  nightdeparis: 'دفء باريسي يلفّك في ليالي الشتاء، عنبر وفانيليا بثبات طويل.',
+  aurora: 'خط جديد بإطلالة عصرية وروائح متجددة لكل الأذواق.',
+  nitro: 'طاقة وحيوية في كل رشة، بعلب أنيقة وإصدارات محدودة.',
+  designer: 'ساڤاج، بلو دو شانيل، وأشهر الأسماء العالمية — أصلية ومستوردة مباشرة.'
+};
+
+function brandAdFrom(b, order) {
+  const ad = {
+    id: genId('ad'),
+    title: String(b.label || '').slice(0, 120),
+    desc: BRAND_AD_COPY[b.key] || b.tag || 'تصفّحوا أحدث العطور من هذا الخط.',
+    buttonText: ('تسوّق ' + String(b.label || '').split(' —')[0]).slice(0, 40),
+    link: 'brand:' + b.key,
+    brand: b.key,
+    effect: 'brand',
+    theme: 'both',
+    color: /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#C9A227',
+    active: true,
+    createdAt: Date.now(),
+    order
+  };
+  if (b.bannerUrl) {
+    // copy the brand's photo so deleting the ad never deletes the brand's own file
+    try {
+      const src = path.join(__dirname, b.bannerUrl.replace(/^\/uploads\//, 'uploads/'));
+      const name = `ad_${ad.id}_${Date.now()}${path.extname(src).toLowerCase()}`;
+      fs.copyFileSync(src, path.join(__dirname, 'uploads', name));
+      ad.imageUrl = `/uploads/${name}`;
+      ad.effect = 'zoom';
+    } catch (e) { /* photo missing on disk — keep the generated look */ }
+  }
+  return ad;
+}
+
+/* adds an ad for every brand that doesn't have one yet; returns how many */
+function importBrandAds() {
+  const ads = readTable('ads');
+  const have = new Set(ads.map(a => a.brand).filter(Boolean));
+  let order = ads.reduce((m, a) => Math.max(m, a.order || 0), -1) + 1;
+  let added = 0;
+  readTable('brands').sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(b => {
+    if (have.has(b.key)) return;
+    ads.push(brandAdFrom(b, order++));
+    added++;
+  });
+  writeTable('ads', ads);
+  return added;
+}
+
+function ensureAdsSeeded() {
+  if (fs.existsSync(path.join(__dirname, 'data', 'ads.json'))) return;
+  writeTable('ads', []);
+  importBrandAds();
+}
+
+app.post('/api/admin/ads/import-brands', requireAdmin, (req, res) => {
+  ensureAdsSeeded();
+  const added = importBrandAds();
+  res.json({ added, ads: sortedAds() });
+});
 
 /* public: only the ads switched on */
 app.get('/api/ads', (req, res) => {
