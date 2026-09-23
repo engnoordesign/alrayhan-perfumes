@@ -14,7 +14,7 @@
     }catch(e){ document.documentElement.setAttribute('data-theme','dark'); }
   })();
 </script>
-<link rel="icon" href="/alrayhan_perfumes_logo.jpg">
+<link rel="icon" href="/logo-dark.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -302,6 +302,11 @@ html[data-theme="light"] .ad-prev .ad-shade{ background:linear-gradient(180deg, 
 @keyframes adShine{ 0%{ left:-40%;} 60%,100%{ left:110%;} }
 @keyframes adSpark{ 0%,100%{ opacity:0; transform:scale(.4);} 50%{ opacity:1; transform:scale(1);} }
 @keyframes adGlow{ 0%,100%{ opacity:.45; transform:translate(-50%,-50%) scale(.9);} 50%{ opacity:1; transform:translate(-50%,-50%) scale(1.08);} }
+
+/* ---------- LOGO: dark/light versions, centred emblem ---------- */
+html[data-theme="light"] .logo-dark,
+html:not([data-theme="light"]) .logo-light{ display:none !important; }
+.logo-dark, .logo-light{ object-position:center !important; }
 </style>
 </head>
 <body>
@@ -309,7 +314,7 @@ html[data-theme="light"] .ad-prev .ad-shade{ background:linear-gradient(180deg, 
 <!-- LOGIN -->
 <div class="login-screen" id="loginScreen">
   <div class="login-box">
-    <img src="/alrayhan_perfumes_logo.jpg" alt="عطور الريحان">
+    <img class="logo-dark" src="/logo-dark.png" alt="عطور الريحان"><img class="logo-light" src="/logo-light.png" alt="عطور الريحان">
     <h1>لوحة الإدارة</h1>
     <p>عطور الريحان — إدارة المنتجات والطلبات</p>
     <input type="password" id="pwInput" placeholder="كلمة المرور" autocomplete="current-password">
@@ -322,7 +327,7 @@ html[data-theme="light"] .ad-prev .ad-shade{ background:linear-gradient(180deg, 
 <div class="app" id="app">
   <div class="topbar">
     <div class="brand">
-      <img src="/alrayhan_perfumes_logo.jpg" alt="">
+      <img class="logo-dark" src="/logo-dark.png" alt=""><img class="logo-light" src="/logo-light.png" alt="">
       <div>
         <b>لوحة الإدارة</b>
         <span>ALRAYHAN ADMIN</span>
@@ -378,7 +383,10 @@ html[data-theme="light"] .ad-prev .ad-shade{ background:linear-gradient(180deg, 
           <h2>إدارة الإعلانات</h2>
           <div class="sub">تظهر الإعلانات أولاً في شريط العرض أعلى الصفحة الرئيسية، بالترتيب الظاهر هنا.</div>
         </div>
-        <button class="btn solid" id="newAdBtn" type="button">+ إعلان جديد</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn ghost" id="importBrandAdsBtn" type="button" title="يضيف إعلاناً لكل خط ليس له إعلان">استيراد الخطوط كإعلانات</button>
+          <button class="btn solid" id="newAdBtn" type="button">+ إعلان جديد</button>
+        </div>
       </div>
       <div id="adList"></div>
     </div>
@@ -1098,7 +1106,7 @@ $('#themeBtn').addEventListener('click', ()=>{
 
 /* ---------------- ads (homepage advertising showcase) ---------------- */
 const AD_EFFECTS = {
-  none:'بدون حركة', zoom:'تقريب بطيء', pan:'انزلاق الصورة', float:'طفو النص',
+  none:'بدون حركة', brand:'حركة الخط الأصلية', zoom:'تقريب بطيء', pan:'انزلاق الصورة', float:'طفو النص',
   shine:'لمعة ذهبية', sparkle:'بريق متلألئ', glow:'توهّج نابض'
 };
 const AD_THEMES = { both:'الوضعين (الفاتح والداكن)', dark:'الوضع الداكن فقط', light:'الوضع الفاتح فقط' };
@@ -1279,6 +1287,15 @@ function openAdModal(ad){
   updateAdPreview();
   $('#adModal').classList.add('open');
 }
+
+$('#importBrandAdsBtn').addEventListener('click', async ()=>{
+  try{
+    const res = await api('/api/admin/ads/import-brands', { method:'POST' });
+    ads = res.ads;
+    renderAds();
+    toast(res.added ? `تمت إضافة ${res.added} إعلان من الخطوط` : 'كل الخطوط لديها إعلانات مسبقاً');
+  }catch(err){ toast(err.message); }
+});
 
 $('#newAdBtn').addEventListener('click', ()=>openAdModal());
 
