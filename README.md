@@ -110,6 +110,38 @@ the logo.
   removed. The three-part scent pyramid on each product's own preview card is unaffected and
   still works the same way.
 
+## WhatsApp verification codes (sign-up OTP)
+
+When a customer signs up with their phone number, the 6-digit code is sent to them on
+**WhatsApp** through Meta's official WhatsApp Business Cloud API. Until you fill in the
+settings below, the site stays in demo mode and shows the code on screen.
+
+Built in: codes expire after 5 minutes, a new code can be requested once a minute, and
+5 wrong attempts cancel the code.
+
+**One-time setup (Meta):**
+
+1. Create a Meta Business account and an app at <https://developers.facebook.com/apps>
+   (type: *Business*), then add the **WhatsApp** product.
+2. Add and verify the phone number the codes will come from (it must not already be used in the
+   normal WhatsApp app). Copy its **Phone number ID**.
+3. In WhatsApp Manager → *Message templates*, create a template in the **Authentication**
+   category (e.g. named `otp_code`, language Arabic) with a **Copy code** button. Wait for approval.
+4. Create a **System User** in Business Settings, give it the app, and generate a **permanent
+   token** with `whatsapp_business_messaging` permission.
+5. Put the values in `server/.env`:
+
+```
+WHATSAPP_TOKEN=your-permanent-token
+WHATSAPP_PHONE_NUMBER_ID=123456789012345
+WHATSAPP_OTP_TEMPLATE=otp_code
+WHATSAPP_TEMPLATE_LANG=ar
+WHATSAPP_OTP_BUTTON=true
+```
+
+Restart the server. Meta charges per authentication message (check current Iraq pricing in
+your WhatsApp Manager). Never commit `server/.env` — the token gives full access to send messages.
+
 ## Setting up order-confirmation emails
 
 When a customer checks out, the order is placed **directly** — no WhatsApp redirect — and the
