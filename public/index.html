@@ -919,7 +919,55 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   .tx-row .tx-amount.neg{ color:#C0524B; font-weight:700; }
   .tx-empty{ color:var(--bone-dim); font-size:13px; text-align:center; padding:30px 0; }
 
+  /* ---------- ACCOUNT: login / sign-up extras ---------- */
+  .auth-box{ max-height:92vh; overflow-y:auto; }
+  .auth-hint{ font-size:10.5px; color:var(--bone-dim); opacity:.85; margin-inline-start:6px; }
+  .auth-hint.ok{ color:var(--leaf); opacity:1; }
+  .auth-hint.bad{ color:#C0524B; opacity:1; }
+  .auth-sublabel{ display:block; font-size:12px; color:var(--bone-dim); margin:4px 0 6px; }
+  .auth-mode{ margin-bottom:20px; }
+  .pw-wrap{ position:relative; }
+  .pw-wrap input{ padding-inline-end:42px !important; }
+  .pw-eye{ all:unset; cursor:pointer; position:absolute; top:50%; transform:translateY(-50%); left:10px; font-size:15px; opacity:.55; }
+  .pw-eye:hover{ opacity:1; }
+  .pw-meter{ height:4px; background:var(--panel-2); border-radius:4px; margin-top:6px; overflow:hidden; }
+  .pw-meter span{ display:block; height:100%; width:0; background:#C0524B; transition:width .2s, background .2s; }
+
+  /* ---------- PROFILE: tabs, orders, favourites, pre-orders ---------- */
+  .profile-uname{ font-size:12px; color:var(--gold-bright); direction:ltr; display:inline-block; margin-bottom:2px; }
+  .ptabs{ display:flex; gap:4px; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:4px; margin-bottom:22px; flex-wrap:wrap; }
+  .ptab{ all:unset; flex:1; min-width:70px; text-align:center; cursor:pointer; padding:9px 8px; border-radius:7px; font-size:12.5px; font-weight:600; color:var(--bone-dim); transition:background .18s, color .18s; }
+  .ptab:hover{ color:var(--bone); }
+  .ptab.active{ background:var(--gold); color:var(--black); }
+  html[data-theme="light"] .ptab.active{ color:#FFFDF7; }
+  .ptab .n{ font-size:10.5px; opacity:.8; margin-inline-start:4px; }
+  .ppane{ display:none; }
+  .ppane.show{ display:block; }
+  .p-card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:12px; }
+  .p-card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+  .p-card-top b{ font-size:14px; color:var(--bone); }
+  .p-card .meta{ font-size:11.5px; color:var(--bone-dim); margin-top:3px; }
+  .p-items{ background:var(--panel-2); border-radius:6px; padding:9px 12px; margin:10px 0 8px; font-size:12.5px; color:var(--bone); }
+  .p-items div{ display:flex; justify-content:space-between; gap:10px; padding:2px 0; }
+  .p-total{ font-size:14.5px; font-weight:700; color:var(--gold-bright); }
+  .spill{ font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:20px; white-space:nowrap; }
+  .spill.new, .spill.waiting{ background:var(--gold); color:var(--black); }
+  .spill.confirmed{ background:rgba(62,107,138,0.25); color:#6FA6CC; }
+  .spill.delivered, .spill.ready{ background:rgba(124,148,115,0.25); color:var(--leaf); }
+  .spill.cancelled{ background:rgba(192,82,75,0.2); color:#C0524B; }
+  html[data-theme="light"] .spill.new, html[data-theme="light"] .spill.waiting{ color:#FFFDF7; }
+  .p-row{ display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .p-row .pr-name{ flex:1; min-width:0; font-size:13.5px; color:var(--bone); }
+  .p-row .pr-name small{ display:block; font-size:11.5px; color:var(--bone-dim); }
+  .p-row .pr-price{ font-size:13px; color:var(--gold-bright); font-weight:700; white-space:nowrap; }
+  .p-row .btn{ padding:7px 12px; font-size:12px; }
+  .p-empty{ color:var(--bone-dim); font-size:13px; text-align:center; padding:34px 10px; border:1px dashed var(--line); border-radius:10px; }
+  .card-buy.card-preorder{ background:transparent; border:1px dashed var(--gold); color:var(--gold-bright); cursor:pointer; opacity:1; }
+  .card-buy.card-preorder:hover{ background:var(--gold); color:var(--black); }
+  html[data-theme="light"] .card-buy.card-preorder:hover{ color:#FFFDF7; }
+
   .profile-logout{ margin-top:36px; width:100%; justify-content:center; }
+
 
   /* ---------- BRAND MENU DROPDOWN ---------- */
   .brand-menu-wrap{ position:relative; }
@@ -1087,8 +1135,58 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   <div class="auth-box">
     <button class="light-close" id="authCloseBtn" aria-label="إغلاق" type="button" style="position:absolute; top:12px; left:12px;">×</button>
 
-    <div id="authStepPhone">
-      <h3>تسجيل الدخول</h3>
+    <div id="authStepLogin" data-auth-step="login">
+      <h3>حسابي</h3>
+      <div class="auth-method auth-mode" role="tablist">
+        <button class="auth-method-btn active" type="button" data-mode="login">تسجيل الدخول</button>
+        <button class="auth-method-btn" type="button" data-mode="signup">إنشاء حساب</button>
+      </div>
+      <div class="auth-field">
+        <label>اسم المستخدم أو الهاتف أو البريد</label>
+        <input type="text" id="loginId" autocomplete="username" dir="ltr" placeholder="username">
+      </div>
+      <div class="auth-field">
+        <label>كلمة المرور</label>
+        <div class="pw-wrap"><input type="password" id="loginPw" autocomplete="current-password" dir="ltr" placeholder="••••••••"><button class="pw-eye" type="button" data-eye="loginPw" aria-label="إظهار كلمة المرور">👁</button></div>
+      </div>
+      <button class="btn solid auth-submit" id="loginBtn" type="button">دخول</button>
+      <p class="auth-error" id="loginError"></p>
+      <button class="auth-back" id="toCodeLoginBtn" type="button">الدخول بكود تحقق بدلاً من كلمة المرور</button>
+    </div>
+
+    <div id="authStepSignup" data-auth-step="signup" style="display:none;">
+      <h3>إنشاء حساب</h3>
+      <div class="auth-method auth-mode" role="tablist">
+        <button class="auth-method-btn" type="button" data-mode="login">تسجيل الدخول</button>
+        <button class="auth-method-btn active" type="button" data-mode="signup">إنشاء حساب</button>
+      </div>
+      <div class="auth-field">
+        <label>اسم المستخدم <small class="auth-hint" id="suUserHint">3–20 حرفاً إنجليزياً أو رقماً، ويُسمح بـ _ و .</small></label>
+        <input type="text" id="suUser" autocomplete="username" dir="ltr" placeholder="alrayhan_fan" maxlength="20">
+      </div>
+      <div class="auth-field">
+        <label>كلمة المرور <small class="auth-hint">8 أحرف على الأقل</small></label>
+        <div class="pw-wrap"><input type="password" id="suPw" autocomplete="new-password" dir="ltr" placeholder="••••••••"><button class="pw-eye" type="button" data-eye="suPw" aria-label="إظهار كلمة المرور">👁</button></div>
+        <div class="pw-meter"><span id="suPwMeter"></span></div>
+      </div>
+      <div class="auth-field">
+        <label>تأكيد كلمة المرور <small class="auth-hint" id="suPw2Hint"></small></label>
+        <div class="pw-wrap"><input type="password" id="suPw2" autocomplete="new-password" dir="ltr" placeholder="••••••••"><button class="pw-eye" type="button" data-eye="suPw2" aria-label="إظهار كلمة المرور">👁</button></div>
+      </div>
+      <label class="auth-sublabel">أرسل كود التحقق إلى</label>
+      <div class="auth-method" role="tablist">
+        <button class="auth-method-btn su-via active" type="button" data-via="phone">واتساب (الهاتف)</button>
+        <button class="auth-method-btn su-via" type="button" data-via="email">البريد الإلكتروني</button>
+      </div>
+      <div class="auth-field">
+        <input type="tel" id="suContact" dir="ltr" placeholder="07xxxxxxxxx" autocomplete="tel">
+      </div>
+      <button class="btn solid auth-submit" id="signupBtn" type="button">إنشاء الحساب وإرسال الكود</button>
+      <p class="auth-error" id="signupError"></p>
+    </div>
+
+    <div id="authStepPhone" data-auth-step="phone" style="display:none;">
+      <h3>الدخول بكود</h3>
       <p class="auth-sub" id="authMethodSub">أدخل رقم هاتفك وسنرسل لك كود تفعيل على واتساب</p>
       <div class="auth-method" role="tablist" aria-label="طريقة التسجيل">
         <button class="auth-method-btn active" type="button" data-method="phone" role="tab" aria-selected="true">رقم الهاتف</button>
@@ -1111,10 +1209,10 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
           المتابعة عبر Apple
         </button>
       </div>
-      <p class="auth-demo-note">هذه نسخة تجريبية للواجهة فقط — لا يتم إرسال رسائل حقيقية ولا تُخزَّن بياناتك بشكل آمن.</p>
+      <button class="auth-back" id="codeToLoginBtn" type="button">الدخول بكلمة المرور</button>
     </div>
 
-    <div id="authStepOtp" style="display:none;">
+    <div id="authStepOtp" data-auth-step="otp" style="display:none;">
       <h3>أدخل كود التفعيل</h3>
       <p class="auth-sub" id="authOtpSubtitle">تم إرسال الكود إلى رقمك</p>
       <div class="auth-otp-hint" id="authOtpHint"></div>
@@ -1127,7 +1225,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       <button class="auth-back" id="authBackBtn" type="button">رجوع</button>
     </div>
 
-    <div id="authStepSocial" style="display:none;">
+    <div id="authStepSocial" data-auth-step="social" style="display:none;">
       <h3 id="authSocialTitle">المتابعة</h3>
       <p class="auth-sub">محاكاة لتسجيل الدخول — أدخل اسمك وبريدك للمتابعة</p>
       <div class="auth-field">
@@ -1152,16 +1250,30 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     <button class="drawer-close" id="profileCloseBtn" aria-label="إغلاق" type="button">×</button>
   </div>
   <div class="profile-body">
-    <span class="demo-badge">وضع تجريبي</span>
     <div class="profile-id-card">
       <div class="profile-avatar-lg" id="profileAvatarLg"></div>
       <div class="pinfo">
+        <span class="profile-uname" id="profileUsername"></span>
         <h3 id="profileName"></h3>
         <div class="psub" id="profileContact"></div>
         <button class="profile-edit-link" id="profileEditNameBtn" type="button">تعديل الاسم</button>
       </div>
     </div>
 
+    <div class="ptabs" role="tablist">
+      <button class="ptab active" type="button" data-pane="orders">طلباتي<span class="n" id="pOrdersN"></span></button>
+      <button class="ptab" type="button" data-pane="favs">المفضلة<span class="n" id="pFavsN"></span></button>
+      <button class="ptab" type="button" data-pane="pre">الطلب المسبق<span class="n" id="pPreN"></span></button>
+      <button class="ptab" type="button" data-pane="wallet">المحفظة</button>
+    </div>
+
+    <div class="ppane show" id="pane-orders"><div id="pOrders"></div></div>
+    <div class="ppane" id="pane-favs"><div id="pFavs"></div></div>
+    <div class="ppane" id="pane-pre">
+      <p style="font-size:12px; color:var(--bone-dim); margin-bottom:12px;">احجز العطور غير المتوفرة حالياً — نتواصل معك فور وصولها.</p>
+      <div id="pPre"></div>
+    </div>
+    <div class="ppane" id="pane-wallet">
     <div class="wallet-card">
       <div class="wc-label">رصيد المحفظة</div>
       <div class="wc-balance" id="walletBalance">0 د.ع</div>
@@ -1173,6 +1285,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
 
     <div class="profile-section-title">سجل العمليات</div>
     <div id="txList"></div>
+    </div>
 
     <button class="btn ghost profile-logout" id="profileLogoutBtn" type="button">تسجيل الخروج</button>
   </div>
@@ -1573,6 +1686,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     if(favorites.includes(id)) favorites = favorites.filter(x=>x!==id);
     else favorites.push(id);
     saveFavorites(favorites);
+    syncFavoritesToServer();
     document.querySelectorAll(`.fav-btn[data-id="${id}"]`).forEach(btn=> btn.classList.toggle('active', favorites.includes(id)));
     const favPanel = document.getElementById('favoritesPanel');
     if(favPanel && favPanel.classList.contains('open')) renderFavoritesPanel();
@@ -1621,7 +1735,9 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
           <span class="price">${p.price}</span>
           <span class="vol">${p.vol}</span>
         </div>
-        <button class="card-buy" data-id="${p.id}" ${unavailable ? 'disabled' : ''}>${outOfStock ? 'نفذت الكمية' : (unavailable ? 'غير متوفر' : 'أضف للسلة')}</button>
+        ${unavailable
+          ? `<button class="card-buy card-preorder" data-id="${p.id}" type="button">اطلب مسبقاً</button>`
+          : `<button class="card-buy" data-id="${p.id}">أضف للسلة</button>`}
       </div>`;
   }
 
@@ -1672,6 +1788,8 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       toggleFavorite(favBtn.dataset.id);
       return;
     }
+    const preBtn = e.target.closest('.card-preorder');
+    if(preBtn){ e.stopPropagation(); placePreorder(preBtn.dataset.id, preBtn); return; }
     const buyBtn = e.target.closest('.card-buy');
     if(buyBtn){
       if(buyBtn.disabled) return;
@@ -1984,12 +2102,13 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   /* ---- auth modal ---- */
   let pendingPhone = null;          // the phone number OR email the code was sent to
   let pendingMethod = 'phone';      // 'phone' | 'email'
+  let pendingMode = 'code';         // 'code' (log in with a code) | 'register' (new account)
   let authMethod = 'phone';
   let pendingSocialProvider = null;
 
   function setAuthMethod(m){
     authMethod = m === 'email' ? 'email' : 'phone';
-    document.querySelectorAll('.auth-method-btn').forEach(b=>{
+    document.querySelectorAll('.auth-method-btn[data-method]').forEach(b=>{
       const on = b.dataset.method === authMethod;
       b.classList.toggle('active', on);
       b.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -2007,7 +2126,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     }
     document.getElementById('authError').textContent = '';
   }
-  document.querySelectorAll('.auth-method-btn').forEach(b=> b.addEventListener('click', ()=>{ setAuthMethod(b.dataset.method); document.getElementById('authPhoneInput').focus(); }));
+  document.querySelectorAll('.auth-method-btn[data-method]').forEach(b=> b.addEventListener('click', ()=>{ setAuthMethod(b.dataset.method); document.getElementById('authPhoneInput').focus(); }));
 
   const authOverlay = document.getElementById('authOverlay');
   const authStepPhone = document.getElementById('authStepPhone');
@@ -2015,21 +2134,21 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   const authStepSocial = document.getElementById('authStepSocial');
 
   function showAuthStep(step){
-    authStepPhone.style.display = step === 'phone' ? '' : 'none';
-    authStepOtp.style.display = step === 'otp' ? '' : 'none';
-    authStepSocial.style.display = step === 'social' ? '' : 'none';
+    document.querySelectorAll('[data-auth-step]').forEach(el=>{ el.style.display = el.dataset.authStep === step ? '' : 'none'; });
   }
 
   function openAuth(){
-    showAuthStep('phone');
     setAuthMethod('phone');
+    ['loginId','loginPw','suUser','suPw','suPw2','suContact'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    ['loginError','signupError'].forEach(id=>{ document.getElementById(id).textContent=''; });
+    showAuthStep('login');
     document.getElementById('authError').textContent = '';
     authOverlay.classList.add('open');
   }
   function closeAuth(){ authOverlay.classList.remove('open'); }
 
   document.getElementById('authCloseBtn').addEventListener('click', closeAuth);
-  document.getElementById('authBackBtn').addEventListener('click', ()=> showAuthStep('phone'));
+  document.getElementById('authBackBtn').addEventListener('click', ()=> showAuthStep(pendingMode === 'register' ? 'signup' : 'phone'));
   document.getElementById('authSocialBackBtn').addEventListener('click', ()=> showAuthStep('phone'));
 
   document.getElementById('authSendCodeBtn').addEventListener('click', async ()=>{
@@ -2049,6 +2168,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       if(!res.ok){ errEl.textContent = data.error || (isEmail ? 'بريد غير صحيح.' : 'رقم غير صحيح.'); return; }
       pendingPhone = value;
       pendingMethod = authMethod;
+      pendingMode = 'code';
       const sub = document.getElementById('authOtpSubtitle');
       const hint = document.getElementById('authOtpHint');
       sub.textContent = `تم إرسال الكود إلى ${value}`;
@@ -2071,17 +2191,23 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     const errEl = document.getElementById('authOtpError');
     try{
       const isEmail = pendingMethod === 'email';
+      if(pendingMode === 'register'){
+        const r = await fetch('/api/auth/register/verify', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ method: pendingMethod, contact: pendingPhone, code })
+        });
+        const d = await r.json();
+        if(!r.ok){ errEl.textContent = d.error || 'الكود غير صحيح.'; return; }
+        await finishLogin(d);
+        return;
+      }
       const res = await fetch(isEmail ? '/api/auth/email/verify' : '/api/auth/phone/verify', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify(isEmail ? { email: pendingPhone, code } : { phone: pendingPhone, code })
       });
       const data = await res.json();
       if(!res.ok){ errEl.textContent = data.error || 'الكود غير صحيح.'; return; }
-      setUserToken(data.token);
-      cachedUser = data.user;
-      updateProfileButton();
-      closeAuth();
-      openProfilePanel();
+      await finishLogin(data);
     }catch(e){
       errEl.textContent = 'تعذر الاتصال بالخادم.';
     }
@@ -2115,11 +2241,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       });
       const data = await res.json();
       if(!res.ok){ errEl.textContent = data.error || 'بيانات غير صحيحة.'; return; }
-      setUserToken(data.token);
-      cachedUser = data.user;
-      updateProfileButton();
-      closeAuth();
-      openProfilePanel();
+      await finishLogin(data); // social sign-in
     }catch(e){
       errEl.textContent = 'تعذر الاتصال بالخادم.';
     }
@@ -2133,6 +2255,8 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   /* ---- profile panel ---- */
   function openProfilePanel(){
     renderProfile();
+    renderProfileLists();
+    loadProfileData();
     document.getElementById('profilePanel').classList.add('open');
   }
   function closeProfilePanel(){ document.getElementById('profilePanel').classList.remove('open'); }
@@ -2143,6 +2267,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     if(!u) return;
     document.getElementById('profileAvatarLg').textContent = (u.name||'?').trim().charAt(0).toUpperCase();
     document.getElementById('profileName').textContent = u.name || 'بدون اسم';
+    document.getElementById('profileUsername').textContent = u.username ? '@' + u.username : '';
     document.getElementById('profileContact').textContent = u.phone ? u.phone : (u.email || '');
     document.getElementById('walletBalance').textContent = fmtIQDWallet(u.wallet || 0);
 
@@ -2162,6 +2287,242 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       `).join('');
     }
   }
+
+  /* ---------- log in / sign up with username + password ---------- */
+  async function finishLogin(data){
+    setUserToken(data.token);
+    cachedUser = data.user;
+    await mergeFavoritesAfterLogin();
+    updateProfileButton();
+    closeAuth();
+    openProfilePanel();
+  }
+
+  document.querySelectorAll('.auth-mode .auth-method-btn').forEach(b=> b.addEventListener('click', ()=>{
+    showAuthStep(b.dataset.mode === 'signup' ? 'signup' : 'login');
+  }));
+  document.getElementById('toCodeLoginBtn').addEventListener('click', ()=> showAuthStep('phone'));
+  document.getElementById('codeToLoginBtn').addEventListener('click', ()=> showAuthStep('login'));
+  document.querySelectorAll('.pw-eye').forEach(b=> b.addEventListener('click', ()=>{
+    const i = document.getElementById(b.dataset.eye);
+    i.type = i.type === 'password' ? 'text' : 'password';
+  }));
+
+  async function doPasswordLogin(){
+    const errEl = document.getElementById('loginError');
+    errEl.textContent = '';
+    const login = document.getElementById('loginId').value.trim();
+    const password = document.getElementById('loginPw').value;
+    if(!login || !password){ errEl.textContent = 'أدخل اسم المستخدم وكلمة المرور.'; return; }
+    const btn = document.getElementById('loginBtn'); btn.disabled = true;
+    try{
+      const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ login, password }) });
+      const data = await res.json();
+      if(!res.ok){ errEl.textContent = data.error || 'تعذر تسجيل الدخول.'; return; }
+      await finishLogin(data);
+    }catch(e){ errEl.textContent = 'تعذر الاتصال بالخادم.'; }
+    finally{ btn.disabled = false; }
+  }
+  document.getElementById('loginBtn').addEventListener('click', doPasswordLogin);
+  document.getElementById('loginPw').addEventListener('keydown', e=>{ if(e.key === 'Enter') doPasswordLogin(); });
+
+  let signupVia = 'phone';
+  document.querySelectorAll('.su-via').forEach(b=> b.addEventListener('click', ()=>{
+    signupVia = b.dataset.via;
+    document.querySelectorAll('.su-via').forEach(x=> x.classList.toggle('active', x === b));
+    const c = document.getElementById('suContact');
+    c.value = '';
+    if(signupVia === 'email'){ c.type = 'email'; c.placeholder = 'you@gmail.com'; c.autocomplete = 'email'; }
+    else { c.type = 'tel'; c.placeholder = '07xxxxxxxxx'; c.autocomplete = 'tel'; }
+    c.focus();
+  }));
+
+  const USERNAME_OK = /^[A-Za-z0-9_.]{3,20}$/;
+  let unameTimer = null;
+  document.getElementById('suUser').addEventListener('input', (e)=>{
+    const hint = document.getElementById('suUserHint');
+    const v = e.target.value.trim();
+    clearTimeout(unameTimer);
+    hint.className = 'auth-hint';
+    if(!v){ hint.textContent = '3–20 حرفاً إنجليزياً أو رقماً، ويُسمح بـ _ و .'; return; }
+    if(!USERNAME_OK.test(v)){ hint.textContent = 'حروف إنجليزية وأرقام و _ . فقط (3–20)'; hint.classList.add('bad'); return; }
+    hint.textContent = 'جارِ التحقق...';
+    unameTimer = setTimeout(async ()=>{
+      try{
+        const r = await (await fetch('/api/auth/username-available?u=' + encodeURIComponent(v))).json();
+        if(document.getElementById('suUser').value.trim() !== v) return;
+        hint.textContent = r.available ? '✓ متاح' : '✗ محجوز — اختر اسماً آخر';
+        hint.classList.add(r.available ? 'ok' : 'bad');
+      }catch(err){ hint.textContent = ''; }
+    }, 350);
+  });
+  function pwScore(p){
+    let s = 0;
+    if(p.length >= 8) s++; if(p.length >= 12) s++;
+    if(/[A-Z]/.test(p) && /[a-z]/.test(p)) s++;
+    if(/\d/.test(p)) s++; if(/[^A-Za-z0-9]/.test(p)) s++;
+    return Math.min(s, 4);
+  }
+  function updatePwUI(){
+    const p = document.getElementById('suPw').value, p2 = document.getElementById('suPw2').value;
+    const sc = p ? pwScore(p) : 0;
+    const bar = document.getElementById('suPwMeter');
+    bar.style.width = (p ? Math.max(15, sc * 25) : 0) + '%';
+    bar.style.background = ['#C0524B','#C0524B','#D98C3B','#A6A33A','#7C9473'][sc];
+    const h = document.getElementById('suPw2Hint');
+    h.className = 'auth-hint';
+    if(!p2){ h.textContent = ''; }
+    else if(p2 === p){ h.textContent = '✓ متطابقة'; h.classList.add('ok'); }
+    else { h.textContent = '✗ غير متطابقة'; h.classList.add('bad'); }
+  }
+  document.getElementById('suPw').addEventListener('input', updatePwUI);
+  document.getElementById('suPw2').addEventListener('input', updatePwUI);
+
+  document.getElementById('signupBtn').addEventListener('click', async ()=>{
+    const errEl = document.getElementById('signupError');
+    errEl.textContent = '';
+    const username = document.getElementById('suUser').value.trim();
+    const password = document.getElementById('suPw').value;
+    const confirm = document.getElementById('suPw2').value;
+    const contact = document.getElementById('suContact').value.trim();
+    if(!USERNAME_OK.test(username)){ errEl.textContent = 'اسم المستخدم غير صالح.'; return; }
+    if(password.length < 8){ errEl.textContent = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.'; return; }
+    if(password !== confirm){ errEl.textContent = 'تأكيد كلمة المرور غير مطابق.'; return; }
+    if(!contact){ errEl.textContent = signupVia === 'email' ? 'أدخل بريدك الإلكتروني.' : 'أدخل رقم هاتفك.'; return; }
+    const btn = document.getElementById('signupBtn'); btn.disabled = true;
+    try{
+      const res = await fetch('/api/auth/register/start', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ username, password, confirm, method: signupVia, contact })
+      });
+      const data = await res.json();
+      if(!res.ok){ errEl.textContent = data.error || 'تعذر إنشاء الحساب.'; return; }
+      pendingMode = 'register';
+      pendingMethod = signupVia;
+      pendingPhone = contact;
+      const sub = document.getElementById('authOtpSubtitle');
+      sub.textContent = `أرسلنا كود التحقق إلى ${contact}`;
+      sub.setAttribute('dir', 'auto');
+      const hint = document.getElementById('authOtpHint');
+      if(data.channel === 'whatsapp') hint.textContent = '📱 تفقّد واتساب — الكود صالح لمدة 10 دقائق.';
+      else if(data.channel === 'email') hint.textContent = '✉️ تفقّد بريدك (والرسائل غير المرغوب فيها) — الكود صالح لمدة 10 دقائق.';
+      else hint.textContent = `🧪 وضع تجريبي (${signupVia === 'email' ? 'البريد' : 'واتساب'} غير مفعّل بعد) — الكود هو: ${data.devCode}`;
+      document.getElementById('authOtpInput').value = '';
+      document.getElementById('authOtpError').textContent = '';
+      showAuthStep('otp');
+    }catch(e){ errEl.textContent = 'تعذر الاتصال بالخادم.'; }
+    finally{ btn.disabled = false; }
+  });
+
+  /* ---------- favourites follow the account ---------- */
+  let favSyncTimer = null;
+  function syncFavoritesToServer(){
+    if(!getUserToken()) return;
+    clearTimeout(favSyncTimer);
+    favSyncTimer = setTimeout(()=>{
+      fetch('/api/me/favorites', { method:'PUT', headers: userHeaders({'Content-Type':'application/json'}), body: JSON.stringify({ ids: favorites }) }).catch(()=>{});
+    }, 400);
+  }
+  async function mergeFavoritesAfterLogin(){
+    if(!getUserToken()) return;
+    try{
+      const server = await (await fetch('/api/me/favorites', { headers: userHeaders() })).json();
+      if(Array.isArray(server)){
+        favorites = [...new Set(server.concat(favorites))];
+        saveFavorites(favorites);
+        syncFavoritesToServer();
+        document.querySelectorAll('.fav-btn').forEach(btn=> btn.classList.toggle('active', favorites.includes(btn.dataset.id)));
+      }
+    }catch(e){}
+  }
+
+  /* ---------- pre-orders ---------- */
+  async function placePreorder(id, btn){
+    if(!getUserToken()){ openAuth(); return; }
+    try{
+      const res = await fetch('/api/me/preorders', { method:'POST', headers: userHeaders({'Content-Type':'application/json'}), body: JSON.stringify({ productId: id, qty: 1 }) });
+      const data = await res.json();
+      if(!res.ok){ alert(data.error || 'تعذر الحجز.'); return; }
+      myPreorders = data;
+      if(btn){ const t = btn.textContent; btn.textContent = 'تم الحجز ✓'; setTimeout(()=>{ btn.textContent = t; }, 1400); }
+    }catch(e){ alert('تعذر الاتصال بالخادم.'); }
+  }
+
+  /* ---------- profile tabs ---------- */
+  let myOrders = [], myPreorders = [];
+  const ORDER_STATUS = { new:'جديد', confirmed:'مؤكد', delivered:'تم التسليم', cancelled:'ملغى' };
+  const PRE_STATUS = { waiting:'بانتظار التوفر', ready:'متوفر الآن', cancelled:'ملغى' };
+  function pEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function pMoney(n){ return Number(n||0).toLocaleString('en-US') + ' د.ع'; }
+
+  document.querySelectorAll('.ptab').forEach(t=> t.addEventListener('click', ()=>{
+    document.querySelectorAll('.ptab').forEach(x=> x.classList.toggle('active', x === t));
+    document.querySelectorAll('.ppane').forEach(p=> p.classList.toggle('show', p.id === 'pane-' + t.dataset.pane));
+  }));
+
+  async function loadProfileData(){
+    if(!getUserToken()) return;
+    try{
+      const [o, pr] = await Promise.all([
+        fetch('/api/me/orders', { headers: userHeaders() }).then(r=>r.ok ? r.json() : []),
+        fetch('/api/me/preorders', { headers: userHeaders() }).then(r=>r.ok ? r.json() : [])
+      ]);
+      myOrders = o; myPreorders = pr;
+    }catch(e){}
+    renderProfileLists();
+  }
+
+  function renderProfileLists(){
+    const oWrap = document.getElementById('pOrders');
+    document.getElementById('pOrdersN').textContent = myOrders.length ? `(${myOrders.length})` : '';
+    oWrap.innerHTML = !myOrders.length ? '<div class="p-empty">لم تطلب شيئاً بعد — تصفّح المجموعة وأضف عطرك الأول.</div>'
+      : myOrders.map(o=>`
+        <div class="p-card">
+          <div class="p-card-top">
+            <div><b>طلب ${pEsc(o.id.slice(-6).toUpperCase())}</b><div class="meta">${new Date(o.createdAt).toLocaleString('ar-IQ')} · ${o.deliveryMethod === 'pickup' ? 'استلام من الفرع' : 'توصيل'}</div></div>
+            <span class="spill ${pEsc(o.status||'new')}">${ORDER_STATUS[o.status] || 'جديد'}</span>
+          </div>
+          <div class="p-items">${(o.items||[]).map(it=>`<div><span>${pEsc(it.ar)} × ${it.qty}</span><span>${pMoney(it.lineTotal)}</span></div>`).join('')}</div>
+          <div class="p-total">المجموع: ${pMoney(o.total)}</div>
+        </div>`).join('');
+
+    const favItems = products.filter(p=> favorites.includes(p.id));
+    document.getElementById('pFavsN').textContent = favItems.length ? `(${favItems.length})` : '';
+    document.getElementById('pFavs').innerHTML = !favItems.length ? '<div class="p-empty">لا توجد عطور في المفضلة — اضغط ♡ على أي عطر لحفظه هنا.</div>'
+      : favItems.map(p=>{
+          const unavailable = p.available === false || isOutOfStock(p);
+          return `<div class="p-row" data-id="${pEsc(p.id)}">
+            <div class="pr-name">${pEsc(p.ar)}<small>${pEsc(p.name||'')} · ${pEsc(p.vol||'')}</small></div>
+            <span class="pr-price">${pEsc(p.price)}</span>
+            ${unavailable ? '<button class="btn ghost" data-pact="pre" type="button">اطلب مسبقاً</button>' : '<button class="btn solid" data-pact="cart" type="button">للسلة</button>'}
+            <button class="btn ghost" data-pact="unfav" type="button" aria-label="إزالة من المفضلة">✕</button>
+          </div>`; }).join('');
+
+    const pre = myPreorders.filter(x=> x.status !== 'cancelled');
+    document.getElementById('pPreN').textContent = pre.length ? `(${pre.length})` : '';
+    document.getElementById('pPre').innerHTML = !myPreorders.length ? '<div class="p-empty">لا توجد طلبات مسبقة — اضغط «اطلب مسبقاً» على أي عطر نفذت كميته.</div>'
+      : myPreorders.map(x=>`
+        <div class="p-row" data-pre="${pEsc(x.id)}">
+          <div class="pr-name">${pEsc(x.ar)} × ${x.qty}<small>${new Date(x.createdAt).toLocaleDateString('ar-IQ')}</small></div>
+          <span class="spill ${pEsc(x.status)}">${PRE_STATUS[x.status] || pEsc(x.status)}</span>
+          ${x.status === 'waiting' ? '<button class="btn ghost" data-pact="cancelpre" type="button">إلغاء</button>' : ''}
+        </div>`).join('');
+  }
+
+  document.getElementById('profilePanel').addEventListener('click', async (e)=>{
+    const b = e.target.closest('[data-pact]');
+    if(!b) return;
+    const row = b.closest('.p-row');
+    const act = b.dataset.pact;
+    if(act === 'cart'){ addToCart(row.dataset.id); b.textContent = '✓'; setTimeout(()=>{ b.textContent = 'للسلة'; }, 1000); }
+    else if(act === 'unfav'){ toggleFavorite(row.dataset.id); renderProfileLists(); }
+    else if(act === 'pre'){ await placePreorder(row.dataset.id, b); renderProfileLists(); }
+    else if(act === 'cancelpre'){
+      if(!confirm('إلغاء هذا الطلب المسبق؟')) return;
+      const r = await fetch('/api/me/preorders/' + encodeURIComponent(row.dataset.pre), { method:'DELETE', headers: userHeaders() });
+      if(r.ok){ myPreorders = await r.json(); renderProfileLists(); }
+    }
+  });
 
   document.getElementById('profileEditNameBtn').addEventListener('click', async ()=>{
     const u = currentUser();
@@ -2381,7 +2742,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       try{
         const res = await fetch('/api/orders', {
           method: 'POST',
-          headers: paymentMethod === 'wallet' ? userHeaders({'Content-Type':'application/json'}) : {'Content-Type':'application/json'},
+          headers: getUserToken() ? userHeaders({'Content-Type':'application/json'}) : {'Content-Type':'application/json'},
           body: JSON.stringify({
             name, phone, deliveryMethod, paymentMethod, address, branch, notes,
             items: entries.map(en=>({ id: en.product.id, qty: en.qty }))
@@ -3160,7 +3521,7 @@ new MutationObserver(()=>{ heroIndex = 0; renderHeroSlides(); restartHeroTimer()
 
     // if a user was already logged in on this device, refresh their profile from the server
     if(getUserToken()){
-      try{ await refreshCurrentUser(); }catch(e){}
+      try{ await refreshCurrentUser(); await mergeFavoritesAfterLogin(); }catch(e){}
       updateProfileButton();
     }
   })();
