@@ -256,6 +256,49 @@
   @keyframes nitroGlitch{ 0%,89%,100%{ opacity:1; filter:none;} 90%{ opacity:.5;} 92%{ opacity:1; filter:brightness(1.6);} 94%{ opacity:.7;} 96%{ opacity:1;} }
   @keyframes shineMove{ 0%{ left:-180px;} 60%{ left:110%;} 100%{ left:110%;} }
 
+/* ---------- HERO: ADVERTISEMENTS (managed from /admin → الإعلانات) ----------
+   Ad slides follow the site theme: dark showcase in dark mode, warm
+   ivory in light mode. Brand slides keep their intentionally dark look. */
+.ad-slide .ad-bg{
+  background-color:var(--black);
+  background-image:radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--ad, #C9A227) 35%, transparent), transparent 62%);
+  background-size:cover; background-position:center;
+}
+.ad-slide .ad-shade{
+  position:absolute; inset:0; z-index:1; pointer-events:none;
+  background:linear-gradient(180deg, rgba(12,11,9,0.2), rgba(12,11,9,0.8));
+}
+.ad-slide .slide-title{ text-shadow:0 2px 18px rgba(0,0,0,0.35); }
+html[data-theme="light"] .hero .ad-slide{
+  --black:#F7F3E9; --panel:#FFFDF7; --panel-2:#F1EADA;
+  --gold:#A67C1E; --gold-bright:#8A6414; --gold-dim:#C9A227;
+  --bone:#2A241C; --bone-dim:#4E4538; --line: rgba(166,124,30,0.28);
+}
+html[data-theme="light"] .hero .ad-slide .ad-shade{
+  background:linear-gradient(180deg, rgba(247,243,233,0.15), rgba(247,243,233,0.86));
+}
+html[data-theme="light"] .hero .ad-slide .slide-title{ text-shadow:0 2px 14px rgba(255,253,247,0.6); }
+html[data-theme="light"] .hero .ad-slide .btn.solid{ color:#FFFDF7; }
+/* ---- advertisement motion effects (same names in admin preview + storefront) ---- */
+.ad-shine{ position:absolute; top:0; bottom:0; width:32%; left:-40%; background:linear-gradient(100deg, transparent, rgba(255,240,200,0.38), transparent); pointer-events:none; }
+.ad-spark{ position:absolute; width:5px; height:5px; border-radius:50%; background:var(--gold-bright); box-shadow:0 0 8px var(--gold-bright); opacity:.6; pointer-events:none; }
+.ad-glow{ position:absolute; top:50%; left:50%; width:60%; aspect-ratio:1; transform:translate(-50%,-50%); border-radius:50%; background:radial-gradient(circle, color-mix(in srgb, var(--ad, #C9A227) 45%, transparent), transparent 65%); pointer-events:none; }
+.fx-pan .ad-bg{ left:-8%; right:-8%; }
+@media (prefers-reduced-motion: no-preference){
+  .fx-zoom .ad-bg{ animation:adZoom 14s ease-in-out infinite alternate; }
+  .fx-pan .ad-bg{ animation:adPan 16s ease-in-out infinite alternate; }
+  .fx-float .ad-copy{ animation:adFloat 4.5s ease-in-out infinite; }
+  .fx-shine .ad-shine{ animation:adShine 4.5s ease-in-out infinite; }
+  .fx-sparkle .ad-spark{ animation:adSpark 2.4s ease-in-out infinite; }
+  .fx-glow .ad-glow{ animation:adGlow 3.6s ease-in-out infinite; }
+}
+@keyframes adZoom{ from{ transform:scale(1);} to{ transform:scale(1.14);} }
+@keyframes adPan{ from{ transform:translateX(-6%);} to{ transform:translateX(6%);} }
+@keyframes adFloat{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-10px);} }
+@keyframes adShine{ 0%{ left:-40%;} 60%,100%{ left:110%;} }
+@keyframes adSpark{ 0%,100%{ opacity:0; transform:scale(.4);} 50%{ opacity:1; transform:scale(1);} }
+@keyframes adGlow{ 0%,100%{ opacity:.45; transform:translate(-50%,-50%) scale(.9);} 50%{ opacity:1; transform:translate(-50%,-50%) scale(1.08);} }
+
   /* ---------- SECTIONS ---------- */
   section{ padding:100px 0; position:relative; }
   .section-head{ max-width:680px; margin-bottom:48px; }
@@ -2801,6 +2844,65 @@
   /* =====================================================
      HERO — sliding brand showcase (5s per slide)
   ===================================================== */
+/* =====================================================
+   HERO ADS — advertisements managed from /admin → الإعلانات.
+   They appear before the brand slides and respect the
+   light/dark theme (an ad can be limited to one theme).
+   ===================================================== */
+let heroAds = [];
+
+function heroEsc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function getAdSlides(){
+  const theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  return heroAds
+    .filter(a => a && a.active !== false && (!a.theme || a.theme === 'both' || a.theme === theme))
+    .map(a => ({ ad: a, key: 'ad', title: heroEsc(a.title) }));
+}
+
+function adFxMarkup(effect){
+  if(effect === 'sparkle'){
+    let out = '';
+    for(let i=0;i<10;i++){
+      out += `<span class="ad-spark" style="top:${(Math.random()*85+5).toFixed(1)}%; left:${(Math.random()*90+5).toFixed(1)}%; animation-delay:${(Math.random()*2.4).toFixed(2)}s;"></span>`;
+    }
+    return out;
+  }
+  if(effect === 'shine') return '<span class="ad-shine"></span>';
+  if(effect === 'glow') return '<span class="ad-glow"></span>';
+  return '';
+}
+
+function adSlideHTML(s, i){
+  const a = s.ad;
+  const effect = ['none','zoom','pan','float','shine','sparkle','glow'].includes(a.effect) ? a.effect : 'none';
+  const color = /^#[0-9a-f]{6}$/i.test(a.color || '') ? a.color : '#C9A227';
+  const img = a.imageUrl && /^\/uploads\/[\w.\-]+$/.test(a.imageUrl) ? a.imageUrl : '';
+  let cta = '';
+  if(a.link && a.buttonText){
+    if(a.link.startsWith('brand:')){
+      cta = `<button class="btn solid" type="button" data-brand="${heroEsc(a.link.slice(6))}">${heroEsc(a.buttonText)}</button>`;
+    }else if(/^(https?:\/\/|\/)/i.test(a.link)){
+      const ext = /^https?:/i.test(a.link) ? ' target="_blank" rel="noopener"' : '';
+      cta = `<a class="btn solid" href="${heroEsc(a.link)}"${ext}>${heroEsc(a.buttonText)}</a>`;
+    }
+  }
+  return `
+    <div class="hero-slide ad-slide fx-${effect}${i===0?' active':''}" data-i="${i}" style="--ad:${color}">
+      <div class="slide-bg ad-bg"${img ? ` style="background-image:url('${img}')"` : ''}></div>
+      <div class="ad-shade"></div>
+      <div class="slide-fx">${adFxMarkup(effect)}</div>
+      <div class="slide-content ad-copy">
+        <h2 class="slide-title">${heroEsc(a.title)}</h2>
+        ${a.desc ? `<p class="slide-desc">${heroEsc(a.desc)}</p>` : ''}
+        ${cta}
+      </div>
+    </div>
+  `;
+}
+
   const heroSlideCopy = {
     ibraq: 'عشر روائح، كل واحدة بحجر كريم يميّزها — من الماس الأزرق المنعش إلى العنبر الأسود الكثيف.',
     assaf: 'فخامة بطابع فرنسي بلمسة شرقية جريئة، بثلاث شخصيات مختلفة تناسب كل الأذواق.',
@@ -2867,8 +2969,8 @@
   let heroTimer = null;
 
   function renderHeroSlides(){
-    const heroSlides = getHeroSlides();
-    heroSlider.innerHTML = heroSlides.map((s,i)=>`
+    const heroSlides = getAdSlides().concat(getHeroSlides());
+    heroSlider.innerHTML = heroSlides.map((s,i)=> s.ad ? adSlideHTML(s,i) : `
       <div class="hero-slide hs-${s.key}${i===0?' active':''}" data-i="${i}">
         <div class="slide-bg"${s.banner ? ` style="background-image:linear-gradient(180deg, rgba(12,11,9,.25), rgba(12,11,9,.82)), url('${s.banner}'); background-size:cover; background-position:center;"` : ''}></div>
         <div class="slide-fx">${s.banner ? '' : heroFxHTML(s.key)}</div>
@@ -2935,6 +3037,9 @@
   renderHeroSlides();
   heroSlider.addEventListener('mouseenter', ()=>{ if(heroTimer) clearInterval(heroTimer); });
   heroSlider.addEventListener('mouseleave', restartHeroTimer);
+/* ads can be limited to light or dark mode — rebuild the showcase when the theme changes */
+new MutationObserver(()=>{ heroIndex = 0; renderHeroSlides(); restartHeroTimer(); })
+  .observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
 
   /* reflect any saved login state as soon as the page loads */
   updateProfileButton();
@@ -2964,6 +3069,10 @@
         brandAccentColors[b.key] = b.color;
       });
       diamonds = diamondsData;
+    try{
+      const adsRes = await fetch('/api/ads');
+      if(adsRes.ok) heroAds = await adsRes.json();
+    }catch(e){ heroAds = []; }
     }catch(e){
       console.error('تعذر تحميل البيانات من الخادم — تأكد أن السيرفر يعمل (npm start).', e);
     }
