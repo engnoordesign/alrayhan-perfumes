@@ -2980,7 +2980,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       lightOpened = true;
       if(!agentChecked) await checkAgentStatus();
       const u = currentUser();
-      const name = u && u.name ? u.name.split(' ')[0] : '';
+      const name = u && u.name ? String(u.name.split(' ')[0]).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) : '';
       const greeting = `أهلاً ${name ? name + ' ' : ''}👋 أنا <b>لايت</b>، مساعد عطور الريحان بالذكاء الاصطناعي — اسألني عن أي عطر، قارن بين عطرين، أو قلّي ميزانيتك وذوقك وأقترح عليك الأنسب، وتكدر تضيف أي اقتراح للسلة مباشرة من هنا.`;
       lightAddMsg(greeting, 'bot');
       lightRenderQuick();
