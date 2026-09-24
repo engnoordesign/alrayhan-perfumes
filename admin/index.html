@@ -214,6 +214,20 @@
   .field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color:var(--gold); }
   .field textarea{ resize:vertical; min-height:74px; }
   .field-row{ display:flex; gap:12px; flex-wrap:wrap; }
+
+  /* mail settings */
+  .mail-card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px; max-width:560px; }
+  .mail-hint{ display:block; font-size:11.5px; color:var(--bone-dim); margin-top:6px; }
+  .mail-adv summary{ cursor:pointer; font-size:12.5px; color:var(--bone-dim); }
+  .mail-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
+  .mail-status{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; max-width:560px; margin-bottom:16px;
+    padding:12px 16px; border-radius:10px; border:1px solid var(--line); background:var(--panel-2); font-size:13px; }
+  .mail-status.ok{ border-color:rgba(124,148,115,0.5); }
+  .mail-status.bad{ border-color:rgba(192,82,75,0.5); }
+  .mail-status .err{ flex-basis:100%; color:#E4948E; font-size:12.5px; }
+  .mail-help{ max-width:560px; margin-top:18px; font-size:12.5px; color:var(--bone-dim); line-height:1.9; }
+  .mail-help ol{ margin:4px 0 10px; padding-inline-start:20px; }
+  .mail-help a{ color:var(--gold-bright); }
   .field-row .field{ flex:1; min-width:120px; }
 
   .pyr-editor{ border:1px solid var(--line); border-radius:8px; padding:14px 16px 4px; margin-top:16px; background:var(--panel-2); }
@@ -353,6 +367,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       <button class="tab" data-view="ads" type="button">الإعلانات</button>
       <button class="tab" data-view="orders" type="button">الطلبات</button>
       <button class="tab" data-view="stats" type="button">الإحصائيات</button>
+      <button class="tab" data-view="mail" type="button">البريد</button>
     </div>
     <div style="display:flex; gap:8px;">
       <button class="btn ghost sm theme-btn" id="themeBtn" type="button" title="الوضع الفاتح / الداكن" aria-label="تبديل الوضع الفاتح والداكن">
@@ -417,6 +432,60 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       <div id="orderList"></div>
       <h3 style="font-family:var(--display); font-size:19px; color:var(--gold-bright); margin:34px 0 12px;">الطلبات المسبقة (عطور غير متوفرة)</h3>
       <div id="preorderList"></div>
+    </div>
+
+    <!-- MAIL SETTINGS -->
+    <div class="view" id="view-mail">
+      <div class="view-head">
+        <div>
+          <h2>إعدادات البريد</h2>
+          <div class="sub">الحساب الذي يُرسل إشعارات الطلبات وأكواد التسجيل. تُحفظ على السيرفر فقط — لا تُرفع إلى GitHub ولا تُحذف عند إعادة تشغيل السيرفر.</div>
+        </div>
+      </div>
+
+      <div class="mail-status" id="mailStatus"></div>
+
+      <form id="mailForm" class="mail-card" autocomplete="off">
+        <div class="field">
+          <label>حساب Gmail المُرسِل</label>
+          <input name="user" type="email" dir="ltr" placeholder="alrayhansystemshop@gmail.com" required>
+        </div>
+        <div class="field">
+          <label>كلمة مرور التطبيق (16 حرفاً)</label>
+          <input name="pass" type="password" dir="ltr" autocomplete="new-password" placeholder="abcd efgh ijkl mnop">
+          <small class="mail-hint" id="mailPassHint"></small>
+        </div>
+        <div class="field">
+          <label>البريد الذي تصله الطلبات</label>
+          <input name="ownerEmail" type="email" dir="ltr" placeholder="نفس حساب Gmail إذا تُرك فارغاً">
+        </div>
+        <div class="field">
+          <label>اسم المُرسِل الظاهر</label>
+          <input name="fromName" type="text" placeholder="عطور الريحان">
+        </div>
+        <details class="mail-adv">
+          <summary>إعدادات متقدمة (لغير Gmail)</summary>
+          <div class="field-row" style="margin-top:12px;">
+            <div class="field"><label>خادم SMTP</label><input name="host" dir="ltr" placeholder="smtp.gmail.com"></div>
+            <div class="field"><label>المنفذ</label><input name="port" dir="ltr" inputmode="numeric" placeholder="465"></div>
+          </div>
+        </details>
+        <div class="mail-actions">
+          <button class="btn solid" type="submit" id="mailSaveBtn">حفظ والتحقق</button>
+          <button class="btn" type="button" id="mailTestBtn">إرسال إيميل تجريبي</button>
+          <button class="btn ghost" type="button" id="mailRetryBtn">إرسال الطلبات المعلّقة الآن</button>
+        </div>
+      </form>
+
+      <div class="mail-help">
+        <b>كيف أحصل على كلمة مرور التطبيق؟</b>
+        <ol>
+          <li>فعّل <b>التحقق بخطوتين</b> في حساب Google.</li>
+          <li>افتح <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">myaccount.google.com/apppasswords</a> وأنشئ كلمة مرور باسم «Alrayhan».</li>
+          <li>انسخ الرمز (16 حرفاً) والصقه هنا واضغط «حفظ والتحقق».</li>
+        </ol>
+        <b>لا تضع كلمة المرور في ملف على GitHub</b> — Google تُلغي كلمات المرور المسرّبة، ويستطيع أي شخص استخدامها. تغيير كلمة مرور حساب Google يُلغيها أيضاً.
+      </div>
     </div>
 
     <!-- STATS -->
@@ -721,6 +790,7 @@ $$('.tab').forEach(tab=>{
     if(tab.dataset.view === 'orders') loadOrders();
     if(tab.dataset.view === 'stats') renderStats();
     if(tab.dataset.view === 'ads') loadAds();
+    if(tab.dataset.view === 'mail') loadMail();
   });
 });
 
@@ -1423,7 +1493,7 @@ function renderOrders(){
             <h4>${esc(o.name)} <span class="pill ${status}">${STATUS_LABELS[status]}</span></h4>
             <div class="meta">${esc(o.phone)} · ${new Date(o.createdAt).toLocaleString('ar-IQ')} · ${esc(o.id)}</div>
             <div class="meta">${place} · ${PAYMENT_LABELS[o.paymentMethod] || esc(o.paymentMethod)}
-              ${o.emailSent ? '· 📧 تم إرسال الإشعار' : '· ⚠️ لم يُرسل إيميل'}</div>
+              ${o.emailSent ? '· 📧 تم إرسال الإشعار' : `· ⏳ الإيميل بانتظار الإرسال${o.emailError ? ' — ' + esc(o.emailError) : ''}`}</div>
           </div>
           <div class="order-total">${fmtIQD(o.total)}</div>
         </div>
@@ -1462,6 +1532,76 @@ $('#orderList').addEventListener('click', async (e)=>{
     renderOrders();
     toast('تم حذف الطلب');
   }catch(err){ toast(err.message); }
+});
+
+/* ---------------- mail settings ---------------- */
+function renderMailStatus(m){
+  const el = $('#mailStatus');
+  const pending = m.pending ? `<span class="pill low">${m.pending} طلب بانتظار الإرسال</span>` : '';
+  if(!m.configured){
+    el.className = 'mail-status bad';
+    el.innerHTML = `<span class="pill out">غير مضبوط</span><span>الطلبات تُحفظ لكن لا يُرسل إيميل حتى تضبط الحساب.</span>${pending}`;
+    return;
+  }
+  const src = m.source === 'env' ? ' (من ملف .env — يُفضّل حفظه هنا)' : '';
+  el.className = 'mail-status ' + (m.lastError ? 'bad' : 'ok');
+  el.innerHTML = `<span class="pill ${m.lastError ? 'out' : 'ok'}">${m.lastError ? 'يوجد خطأ' : 'مفعّل'}</span>
+    <span>يُرسل من ${esc(m.user)} إلى ${esc(m.ownerEmail)}${src}</span>${pending}
+    ${m.lastError ? `<div class="err">${esc(m.lastError)}</div>` : ''}`;
+}
+
+function fillMailForm(m){
+  const f = $('#mailForm');
+  f.user.value = m.user || '';
+  f.pass.value = '';
+  f.ownerEmail.value = m.ownerEmail || '';
+  f.fromName.value = m.fromName || '';
+  f.host.value = m.host || '';
+  f.port.value = m.port || '';
+  $('#mailPassHint').textContent = m.hasPass
+    ? '✓ كلمة مرور محفوظة على السيرفر — اترك الحقل فارغاً للإبقاء عليها.'
+    : 'لم تُحفظ كلمة مرور بعد.';
+}
+
+async function loadMail(){
+  try{ const m = await api('/api/admin/mail-settings'); renderMailStatus(m); fillMailForm(m); }
+  catch(e){ toast('تعذر تحميل إعدادات البريد'); }
+}
+
+$('#mailForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const f = e.target, btn = $('#mailSaveBtn');
+  btn.disabled = true; btn.textContent = 'جارٍ التحقق...';
+  try{
+    const port = parseInt(f.port.value, 10) || 465;
+    const m = await api('/api/admin/mail-settings', { method:'PUT', body: JSON.stringify({
+      user: f.user.value.trim(), pass: f.pass.value, ownerEmail: f.ownerEmail.value.trim(),
+      fromName: f.fromName.value.trim(), host: f.host.value.trim() || 'smtp.gmail.com', port, secure: port === 465
+    })});
+    renderMailStatus(m); fillMailForm(m);
+    toast(m.verified ? 'تم الحفظ — الاتصال بالبريد يعمل ✓' : 'تم الحفظ، لكن التحقق فشل');
+  }catch(err){ toast(err.message); }
+  btn.disabled = false; btn.textContent = 'حفظ والتحقق';
+});
+
+$('#mailTestBtn').addEventListener('click', async ()=>{
+  const btn = $('#mailTestBtn');
+  btn.disabled = true;
+  try{ const r = await api('/api/admin/mail-settings/test', { method:'POST' }); toast('أُرسل إيميل تجريبي إلى ' + r.to); }
+  catch(err){ toast(err.message); }
+  btn.disabled = false;
+  loadMail();
+});
+
+$('#mailRetryBtn').addEventListener('click', async ()=>{
+  const btn = $('#mailRetryBtn');
+  btn.disabled = true;
+  try{
+    const r = await api('/api/admin/mail/retry', { method:'POST' });
+    toast(r.pending ? `ما زال ${r.pending} بانتظار الإرسال` : 'تم إرسال كل الطلبات المعلّقة');
+  }catch(err){ toast(err.message); }
+  btn.disabled = false;
+  loadMail();
 });
 
 /* ---------------- stats view ---------------- */
