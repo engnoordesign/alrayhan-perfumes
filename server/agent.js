@@ -21,7 +21,9 @@ const CONFIGURED_MODEL = process.env.OLLAMA_MODEL || 'llama3.1';
 const NUM_CTX = parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192;
 const REQUEST_TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS, 10) || 180000;
 // keep the model loaded in memory so replies never wait for a cold start (-1 = forever)
-const KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE || '-1';
+const KEEP_ALIVE_RAW = String(process.env.OLLAMA_KEEP_ALIVE || '-1').trim();
+// Ollama wants a plain number (seconds, -1 = forever) or a duration like "24h" — never the text "-1"
+const KEEP_ALIVE = /^-?\d+$/.test(KEEP_ALIVE_RAW) ? Number(KEEP_ALIVE_RAW) : KEEP_ALIVE_RAW;
 const MAX_DETAILED_PRODUCTS = 12;
 
 function fmtIQD(n) {
@@ -414,8 +416,9 @@ async function warmUpAgent() {
       body: JSON.stringify({ model, prompt: '', keep_alive: KEEP_ALIVE }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
-    await res.text();
-    return { ok: res.ok, model };
+    const body = await res.text();
+    if (!res.ok) return { ok: false, error: `Ollama ${res.status}: ${body.slice(0, 160)}` };
+    return { ok: true, model };
   } catch (e) {
     resolvedModel = null;
     return { ok: false, error: e.message };
