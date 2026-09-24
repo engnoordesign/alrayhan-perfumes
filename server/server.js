@@ -6,7 +6,10 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { readTable, writeTable } = require('./db');
-const { initMailer, verifyMailer, sendOrderEmail, isMailConfigured, sendOtpEmail } = require('./mailer');
+const {
+  initMailer, verifyMailer, sendOrderEmail, sendTestEmail, isMailConfigured, sendOtpEmail,
+  saveMailSettings, publicMailSettings
+} = require('./mailer');
 const { checkAgentAvailable, streamAgent, productsMentioned } = require('./agent');
 const whatsapp = require('./whatsapp');
 
@@ -1045,16 +1048,103 @@ app.post('/api/orders', async (req, res) => {
   orders.push(order);
   writeTable('orders', orders);
 
-  // notify the shop owner by email — a mail failure must never fail a real order
-  const mailResult = await sendOrderEmail(order);
-  if (mailResult.sent) {
-    const fresh = readTable('orders');
-    const saved = fresh.find(o => o.id === order.id);
-    if (saved) { saved.emailSent = true; writeTable('orders', fresh); }
-    order.emailSent = true;
-  }
-
+  // answer the customer right away; the owner's email goes through the
+  // queue, which keeps retrying until it is delivered (see below)
   res.status(201).json({ order });
+  retryPendingOrderEmails();
+});
+
+/* ---------------------------------------------------------
+   order-email queue
+   Every order is saved with emailSent:false. This queue sends
+   the notification and keeps retrying (every 2 minutes, and
+   right after the server starts) until it succeeds — so orders
+   that came in while the internet or Gmail was down are still
+   emailed once the connection is back.
+--------------------------------------------------------- */
+const EMAIL_RETRY_EVERY_MS = 2 * 60 * 1000;
+const EMAIL_RETRY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // stop after a week
+let emailQueueRunning = false;
+let emailQueueAgain = false;
+let lastMailError = null;
+
+function pendingEmailOrders() {
+  const cutoff = Date.now() - EMAIL_RETRY_MAX_AGE_MS;
+  return readTable('orders').filter(o =>
+    !o.emailSent && (o.status || 'new') === 'new' && (o.createdAt || 0) >= cutoff);
+}
+
+async function retryPendingOrderEmails() {
+  if (emailQueueRunning) { emailQueueAgain = true; return; }
+  emailQueueRunning = true;
+  try {
+    do {
+      emailQueueAgain = false;
+      if (!isMailConfigured()) break;
+      for (const order of pendingEmailOrders()) {
+        const result = await sendOrderEmail(order);
+        // re-read before writing so we never overwrite a status change made meanwhile
+        const fresh = readTable('orders');
+        const saved = fresh.find(o => o.id === order.id);
+        if (saved) {
+          saved.emailAttempts = (saved.emailAttempts || 0) + 1;
+          if (result.sent) {
+            saved.emailSent = true;
+            saved.emailSentAt = Date.now();
+            delete saved.emailError;
+          } else {
+            saved.emailError = result.reason;
+          }
+          writeTable('orders', fresh);
+        }
+        if (!result.sent) { lastMailError = result.reason; break; } // offline: stop, try again later
+        lastMailError = null;
+      }
+    } while (emailQueueAgain);
+  } catch (e) {
+    console.error('  ❌ email queue error:', e.message);
+  } finally {
+    emailQueueRunning = false;
+  }
+}
+
+/* ---------------------------------------------------------
+   mail settings — admin panel tab "البريد"
+   Stored in server/data/mail-settings.json (git-ignored), so the
+   app password survives restarts and is never pushed to GitHub.
+--------------------------------------------------------- */
+app.get('/api/admin/mail-settings', requireAdmin, (req, res) => {
+  res.json({ ...publicMailSettings(), pending: pendingEmailOrders().length, lastError: lastMailError });
+});
+
+app.put('/api/admin/mail-settings', requireAdmin, async (req, res) => {
+  const b = req.body || {};
+  const user = String(b.user || '').trim();
+  const ownerEmail = String(b.ownerEmail || '').trim();
+  if (!EMAIL_RE.test(user)) return res.status(400).json({ error: 'أدخل عنوان Gmail المُرسِل بشكل صحيح' });
+  if (ownerEmail && !EMAIL_RE.test(ownerEmail)) return res.status(400).json({ error: 'بريد استلام الطلبات غير صحيح' });
+  if (!b.pass && !publicMailSettings().hasPass) return res.status(400).json({ error: 'أدخل كلمة مرور التطبيق' });
+  saveMailSettings({
+    user, pass: b.pass, ownerEmail, fromName: b.fromName,
+    host: b.host, port: b.port, secure: typeof b.secure === 'boolean' ? b.secure : undefined
+  });
+  const check = await verifyMailer();
+  lastMailError = check.ok ? null : check.error;
+  if (check.ok) retryPendingOrderEmails();
+  res.json({ ...publicMailSettings(), pending: pendingEmailOrders().length, verified: check.ok, lastError: lastMailError });
+});
+
+app.post('/api/admin/mail-settings/test', requireAdmin, async (req, res) => {
+  const result = await sendTestEmail();
+  if (!result.sent) { lastMailError = result.error; return res.status(502).json({ error: result.error }); }
+  lastMailError = null;
+  retryPendingOrderEmails();
+  res.json({ ok: true, to: result.to });
+});
+
+app.post('/api/admin/mail/retry', requireAdmin, async (req, res) => {
+  await retryPendingOrderEmails();
+  res.json({ pending: pendingEmailOrders().length, lastError: lastMailError });
 });
 
 /* update an order's status (new / confirmed / delivered / cancelled) */
@@ -1150,4 +1240,7 @@ app.listen(PORT, async () => {
     console.log('    (No ADMIN_PASSWORD set in .env — temporary password shown above. Set one in server/.env.)\n');
   }
   await verifyMailer();
+  // send anything that was left unsent before the server went offline
+  retryPendingOrderEmails();
+  setInterval(retryPendingOrderEmails, EMAIL_RETRY_EVERY_MS);
 });
