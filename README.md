@@ -13,11 +13,9 @@ database, no paid services required to get started.
 - **Full admin control** — add, edit, or delete *any* product, and add, rename, or delete
   entire brand/group sections (with cascading deletion of that brand's products). All gated
   behind a real server-checked admin password, not a hardcoded string in the page source.
-- **Real accounts** — phone sign-up, Google/Apple-style sign-up, and a wallet all live in
+- **Real accounts** — phone sign-up and Google/Apple-style sign-up live in
   `server/data/users.json`. One account per phone number or per e-mail, enforced by the server.
-- **Server-validated wallet** — when someone pays with their wallet at checkout, the balance
-  check and deduction happen on the server, not in the browser. A customer can no longer edit
-  their own balance from the browser console.
+  Accounts hold orders, favourites and pre-orders (there is no wallet).
 - **Real orders with email confirmation** — checkout places the order directly on the server
   (no WhatsApp redirect). The order is saved to `server/data/orders.json` and a formatted
   Arabic notification email is sent to the shop owner through **nodemailer**.
@@ -49,8 +47,6 @@ database, no paid services required to get started.
 - **Google/Apple sign-in is simulated** with a simple name+email form — there's no real OAuth
   handshake. Wiring up real Google/Apple sign-in requires registering the app with each
   provider and doing the token verification server-side.
-- **Wallet top-ups are free** ("شحن المحفظة" just adds the amount) — there's no real payment
-  gateway connected. Don't treat wallet balances as real money without adding one.
 - **The JSON-file database** is perfect for one shop running locally, but it is not built for
   many simultaneous writers. If this ever needs to run on a real public server with real
   traffic, migrate `server/db.js` to a proper database (Postgres, MySQL, etc.) — the rest of
@@ -85,7 +81,7 @@ npm start
 ```
 
 Then open **http://localhost:3000** in your browser. That's the whole site — storefront,
-cart, accounts, wallet, and the admin panel, all served from the same address.
+cart, accounts, and the admin panel, all served from the same address.
 
 On Windows you can also just double-click `start.bat` in the project root (after running
 `npm install` once inside `server/`). On Mac/Linux, `./start.sh` does the same thing.
@@ -268,7 +264,7 @@ alrayhan-system/
 │   ├── data/
 │   │   ├── products.json   ← the real product database
 │   │   ├── brands.json     ← the real brand/group database
-│   │   ├── users.json      ← customer accounts + wallets (starts empty)
+│   │   ├── users.json      ← customer accounts (starts empty)
 │   │   ├── orders.json     ← every order placed (starts empty)
 │   │   └── diamonds.json   ← scent-pyramid notes for the Ibraq Diamond line
 ├── public/                 ← the customer-facing storefront
