@@ -200,6 +200,12 @@ app.put('/api/admin/password', requireAdmin, (req, res) => {
   res.json({ ok: true, token });
 });
 
+app.post('/api/admin/logout', (req, res) => {
+  const auth = req.headers.authorization || '';
+  if (auth.startsWith('Bearer ')) adminTokens.delete(auth.slice(7));
+  res.json({ ok: true });
+});
+
 app.get('/api/admin/security', requireAdmin, (req, res) => {
   res.json({ passwordSetInPanel: Boolean(readAdminHash()) });
 });
@@ -617,8 +623,9 @@ app.get('/api/me', requireUser, (req, res) => {
 });
 
 app.put('/api/me', requireUser, (req, res) => {
-  const { name } = req.body || {};
-  if (name && name.trim()) req.user.name = name.trim();
+  const name = String((req.body || {}).name || '').trim();
+  if (name.length > 60) return res.status(400).json({ error: 'الاسم طويل جداً (60 حرفاً كحد أقصى)' });
+  if (name) req.user.name = name;
   writeTable('users', req.users);
   res.json({ user: publicUser(req.user) });
 });
@@ -1391,7 +1398,18 @@ app.post('/api/chat', limitChat, async (req, res) => {
 --------------------------------------------------------- */
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/') || req.path.startsWith('/admin')) return next();
+  // "/.env", "/server.js", "/package.json"… are not pages: answer "not found"
+  if (/(^|\/)\.|\.[a-z0-9]{1,5}$/i.test(req.path)) return res.status(404).type('text').send('Not found');
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
+
+/* unknown API routes and every error: short JSON, never stack traces or file paths */
+app.use('/api', (req, res) => res.status(404).json({ error: 'not found' }));
+app.use((err, req, res, next) => {
+  if (err && err.type === 'entity.too.large') return res.status(413).json({ error: 'البيانات كبيرة جداً' });
+  if (err && err.type === 'entity.parse.failed') return res.status(400).json({ error: 'بيانات غير صالحة' });
+  console.error('  ❌ خطأ في الخادم:', err && err.message);
+  res.status(500).json({ error: 'حدث خطأ في الخادم' });
 });
 
 initMailer();
