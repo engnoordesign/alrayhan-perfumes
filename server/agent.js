@@ -18,13 +18,16 @@ const { readTable } = require('./db');
 
 const OLLAMA_URL = (process.env.OLLAMA_URL || 'http://localhost:11434').replace(/\/+$/, '');
 const CONFIGURED_MODEL = process.env.OLLAMA_MODEL || 'llama3.1';
-const NUM_CTX = parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192;
+// prompts are now small (~600 tokens), so a small window is plenty and much faster on CPUs
+const NUM_CTX = Math.min(parseInt(process.env.OLLAMA_NUM_CTX, 10) || 2048, 4096);
+// cap the answer length: short replies are what customers want, and each token costs time
+const MAX_TOKENS = parseInt(process.env.OLLAMA_MAX_TOKENS, 10) || 220;
 const REQUEST_TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS, 10) || 180000;
 // keep the model loaded in memory so replies never wait for a cold start (-1 = forever)
 const KEEP_ALIVE_RAW = String(process.env.OLLAMA_KEEP_ALIVE || '-1').trim();
 // Ollama wants a plain number (seconds, -1 = forever) or a duration like "24h" — never the text "-1"
 const KEEP_ALIVE = /^-?\d+$/.test(KEEP_ALIVE_RAW) ? Number(KEEP_ALIVE_RAW) : KEEP_ALIVE_RAW;
-const MAX_DETAILED_PRODUCTS = 12;
+const MAX_DETAILED_PRODUCTS = 5;
 
 function fmtIQD(n) {
   return `${Number(n || 0).toLocaleString('en-US')} د.ع`;
@@ -49,7 +52,9 @@ const STOPWORDS = new Set(norm(
   'شنو شو ما ماذا هل في من على الى عن مع او و ب ل ك هذا هذه ذلك التي الذي انا انت احنا عندكم عندك عدكم ' +
   'اريد ابي ابغي بدي تنصحني تقترح اقترح افضل احسن بين قارن مقارنه الفرق عطر عطور ريحه ريحة لو اذا ليش ' +
   'الف الاف دينار د ع سعر بسعر ميزانيه ميزانيتي حدود تقريبا اقل اكثر من تحت فوق ' +
-  'the a an is are of for to and or which what best better compare between perfume'
+  'the a an is are of for to and or which what best better compare between perfume ' +
+  'do does you your have has any in on stock available there please want need me my i we it this that ' +
+  'how much price cost'
 ).split(' '));
 
 /* Splits text into meaningful words. Arabic glues "و" (and) and "ب" (with)
@@ -167,59 +172,190 @@ function stockLabel(p) {
   return p.available === false ? 'غير متوفر' : 'متوفر';
 }
 
-function productLine(p, brandLabel) {
+function isInStock(p) {
+  return !(p.available === false || (typeof p.qty === 'number' && p.qty <= 0));
+}
+
+/* one compact line per product — every token here costs time on a CPU */
+function productLine(p, brandLabel, withPyramid) {
   const flags = [p.original ? 'أصلي مستورد' : '', p.limited ? 'نسخة محدودة' : ''].filter(Boolean).join('، ');
-  const pyr = p.pyramid
-    ? ` | الهرم: مقدمة (${p.pyramid.top && p.pyramid.top.notes || '-'})، قلب (${p.pyramid.heart && p.pyramid.heart.notes || '-'})، قاعدة (${p.pyramid.base && p.pyramid.base.notes || '-'})`
+  const pyr = withPyramid && p.pyramid
+    ? ` | مقدمة: ${p.pyramid.top && p.pyramid.top.notes || '-'}، قلب: ${p.pyramid.heart && p.pyramid.heart.notes || '-'}، قاعدة: ${p.pyramid.base && p.pyramid.base.notes || '-'}`
     : '';
-  return `- ${p.ar}${p.name ? ` (${p.name})` : ''} | الخط: ${brandLabel} | ${fmtIQD(p.priceNum)} | ${p.vol || ''} | ${stockLabel(p)}${flags ? ' | ' + flags : ''}\n  الوصف: ${String(p.notes || '').slice(0, 160)}${pyr}`;
+  return `- ${p.ar}${p.name ? ` (${p.name})` : ''} | ${brandLabel} | ${fmtIQD(p.priceNum)} | ${p.vol || ''} | ${stockLabel(p)}${flags ? ' | ' + flags : ''} | ${String(p.notes || '').slice(0, 90)}${pyr}`;
 }
 
-/* Compact one-line-per-brand overview, so the model always knows the
-   full range of what's sold even when it only sees a few in detail. */
-function brandOverview() {
+/* ---------- what is the customer asking? ---------- */
+const INTENT_WORDS = {
+  stock: ['متوفر', 'متوفره', 'موجود', 'موجوده', 'عندكم', 'عدكم', 'اكو', 'يتوفر', 'توفر', 'نفذ', 'نفذت', 'خلص', 'خلصان', 'باقي', 'available', 'in stock', 'stock', 'do you have'],
+  outList: ['غير متوفر', 'الغير متوفر', 'نافذ', 'نفذت', 'خلصان', 'مو متوفر', 'ما متوفر', 'out of stock', 'sold out'],
+  cheap: ['ارخص', 'رخيص', 'اقل سعر', 'cheapest', 'cheap'],
+  pricey: ['اغلى', 'غالي', 'افخم', 'most expensive'],
+  notes: ['نوتات', 'مكونات', 'هرم', 'ريحته', 'رائحته', 'ريحتها', 'notes'],
+  compare: ['قارن', 'مقارنه', 'الفرق', 'فرق', 'افضل من', 'احسن من', 'compare', 'vs']
+};
+function hasAny(nq, words) {
+  const padded = ` ${nq} `;
+  return words.some(w => padded.includes(norm(w)));
+}
+
+/* products the customer named explicitly (strong, unambiguous matches).
+   Customers shorten names ("بلو دايموند" for "بلو أكوا دايموند"), so besides
+   exact names we also look at each PAIR of neighbouring words: if only one
+   or two perfumes contain both words, that pair names them. */
+function namedProducts(question) {
+  const nq = norm(question);
   const products = readTable('products');
-  const brands = readTable('brands').sort((a, b) => a.order - b.order);
-  return brands.map(b => {
-    const items = products.filter(p => p.brand === b.key);
-    if (!items.length) return null;
-    const prices = items.map(p => p.priceNum).filter(Boolean);
-    const range = prices.length ? `${fmtIQD(Math.min(...prices))} – ${fmtIQD(Math.max(...prices))}` : '';
-    const names = items.slice(0, 8).map(p => p.ar).join('، ') + (items.length > 8 ? `، و${items.length - 8} غيرها` : '');
-    return `- ${b.label}: ${items.length} عطر، الأسعار ${range}. أمثلة: ${names}`;
-  }).filter(Boolean).join('\n');
+  const nameTexts = products.map(p => ' ' + norm(`${p.ar} ${p.name || ''}`) + ' ');
+  const has = (i, t) => nameTexts[i].includes(' ' + t) || (t.length >= 4 && nameTexts[i].includes(t));
+  // keep the customer's word order (and repeats) so neighbouring pairs stay intact;
+  // strip glued prefixes (و/ب/ف/ل/ال) when that turns a word into a name word
+  const inAnyName = t => t.length >= 3 && !STOPWORDS.has(t) && nameTexts.some((_, i) => has(i, t));
+  const nameWords = [...new Set(nameTexts.join(' ').split(' ').filter(w => w.length >= 4))];
+  // tolerate one typo in longer words ("ساوفاج" → "سافاج")
+  const fixTypo = w => {
+    if (w.length < 5 || STOPWORDS.has(w)) return '';
+    return nameWords.find(n => Math.abs(n.length - w.length) <= 1 && editDistance(n, w) <= (w.length >= 7 ? 2 : 1)) || '';
+  };
+  const qTokens = nq.split(' ').map(w => (/^[وبفل]/.test(w)
+    ? [w, w.slice(1), w.startsWith('ال') ? w.slice(2) : '', w.startsWith('وال') ? w.slice(3) : '']
+    : [w, w.startsWith('ال') ? w.slice(2) : '']).find(inAnyName) || fixTypo(w)).filter(Boolean);
+  const score = new Array(products.length).fill(0);
+
+  // exact names — but "هواس" inside "هواس آيس" only counts for the longer one
+  const exact = products.map(p => {
+    const ar = norm(p.ar).replace(/ المعروف ب .*$/, ''), en = norm(p.name || '');
+    return (ar.length > 2 && nq.includes(ar)) ? ar : (en.length >= 3 && (' ' + nq + ' ').includes(' ' + en + ' ')) ? en : '';
+  });
+  exact.forEach((e, i) => {
+    if (e && !exact.some((o, j) => j !== i && o.length > e.length && o.includes(e))) score[i] += 100;
+  });
+  // a single word that only one perfume has ("ساڤاج", "كاربون")
+  for (const t of qTokens) {
+    const owners = products.map((_, i) => i).filter(i => has(i, t));
+    if (owners.length === 1) score[owners[0]] += 60;
+  }
+  // neighbouring word pairs ("بلو دايموند", "كلوب نوي")
+  for (let k = 0; k < qTokens.length - 1; k++) {
+    const [t1, t2] = [qTokens[k], qTokens[k + 1]];
+    if (t1 === t2 || t2.endsWith(t1) || t1.endsWith(t2)) continue;
+    const owners = products.map((_, i) => i).filter(i => has(i, t1) && has(i, t2));
+    if (owners.length && owners.length <= 2) owners.forEach(i => { score[i] += 50; });
+  }
+  const hits = products.map((p, i) => ({ p, score: score[i] })).filter(h => h.score >= 50).sort((a, b) => b.score - a.score);
+  if (!hits.length) return [];
+  const best = hits[0].score;
+  return hits.filter(h => h.score >= Math.min(best * 0.5, 50)).slice(0, 4).map(h => h.p);
 }
 
-function buildSystemPrompt(question, history) {
+function editDistance(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  }
+  return d[a.length][b.length];
+}
+
+/* does the question mention any perfume-name word or brand at all? */
+function mentionsCatalog(question) {
+  const products = readTable('products'), brands = readTable('brands');
+  const hay = ' ' + norm(products.map(p => `${p.ar} ${p.name || ''}`).join(' ') + ' ' +
+    brands.map(b => `${b.label} ${b.key} ${b.tag || ''}`).join(' ')) + ' ';
+  return norm(question).split(' ').some(w => w.length >= 3 && !STOPWORDS.has(w) &&
+    [w, w.slice(1), w.startsWith('ال') ? w.slice(2) : ''].some(v => v.length >= 3 && hay.includes(' ' + v)));
+}
+
+/* in-stock perfumes closest to one that's sold out (same brand, shared notes) */
+function alternativesFor(p, exclude) {
+  const products = readTable('products');
+  const noteWords = new Set(tokens(`${p.notes || ''}`).filter(t => t.length >= 4));
+  return products
+    .filter(x => x.id !== p.id && isInStock(x) && !exclude.has(x.id))
+    .map(x => {
+      let sc = x.brand === p.brand ? 3 : 0;
+      for (const t of tokens(x.notes || '')) if (noteWords.has(t)) sc += 1;
+      sc -= Math.abs((x.priceNum || 0) - (p.priceNum || 0)) / 50000;
+      return { x, sc };
+    })
+    .sort((a, b) => b.sc - a.sc).slice(0, 3).map(r => r.x);
+}
+
+/* Builds the store facts for THIS question. The server checks stock
+   itself, so the model only has to phrase an answer that is already
+   correct — it never guesses availability. */
+function buildFacts(question, history) {
+  const products = readTable('products');
   const brands = readTable('brands');
-  const relevant = retrieveProducts(question, history);
-  const detail = relevant.map(p => {
-    const b = brands.find(x => x.key === p.brand);
-    return productLine(p, b ? b.label : p.brand);
-  }).join('\n');
+  const brandLabel = p => { const b = brands.find(x => x.key === p.brand); return b ? b.label : p.brand; };
+  const nq = norm(question);
+  const lines = [];
 
+  const named = namedProducts(question);
+  const askStock = hasAny(nq, INTENT_WORDS.stock);
+  const askOutList = hasAny(nq, INTENT_WORDS.outList) && !named.length;
+
+  if (named.length) {
+    lines.push('حالة التوفر الآن (من المخزون — انقلها كما هي؛ إذا ذكر الزبون ماركة ثانية وضّح أن هذا هو الموجود عندنا بهذا الاسم):');
+    for (const p of named) {
+      lines.push(isInStock(p)
+        ? `- ${p.ar}: ✅ ${stockLabel(p)} — ${fmtIQD(p.priceNum)}، ${p.vol || ''}`
+        : `- ${p.ar}: ❌ نفذت الكمية حالياً (يقدر الزبون يطلبه طلب مسبق من الموقع)`);
+    }
+  } else if (askStock && !askOutList && !hasAny(nq, INTENT_WORDS.cheap) && !hasAny(nq, INTENT_WORDS.pricey)) {
+    // asked about the availability of something that isn't in the catalog at all
+    if (!mentionsCatalog(question)) lines.push('حالة التوفر: العطر الذي يسأل عنه الزبون غير موجود في متجرنا. قل ذلك بوضوح واقترح بديلاً متوفراً من القائمة أدناه.');
+  }
+
+  if (askOutList) {
+    const out = products.filter(p => !isInStock(p));
+    lines.push(out.length
+      ? `العطور غير المتوفرة حالياً (${out.length}): ${out.slice(0, 15).map(p => p.ar).join('، ')}`
+      : 'كل العطور متوفرة حالياً، لا يوجد عطر نافذ.');
+  }
+
+  let list;
+  if (hasAny(nq, INTENT_WORDS.cheap)) {
+    list = products.filter(isInStock).sort((a, b) => a.priceNum - b.priceNum).slice(0, MAX_DETAILED_PRODUCTS);
+    lines.push('أرخص العطور المتوفرة:');
+  } else if (hasAny(nq, INTENT_WORDS.pricey)) {
+    list = products.filter(isInStock).sort((a, b) => b.priceNum - a.priceNum).slice(0, MAX_DETAILED_PRODUCTS);
+    lines.push('أغلى العطور المتوفرة:');
+  } else {
+    const seen = new Set(named.map(p => p.id));
+    // a sold-out perfume the customer asked for → offer the closest ones in stock
+    const alts = [];
+    for (const p of named) if (!isInStock(p)) for (const a of alternativesFor(p, seen)) { seen.add(a.id); alts.push(a); }
+    const related = named.length ? [] : retrieveProducts(question, history);
+    list = named.concat(alts, related.filter(p => !seen.has(p.id))).slice(0, Math.max(named.length, MAX_DETAILED_PRODUCTS));
+    lines.push(alts.length ? 'العطور المطلوبة وبدائل متوفرة قريبة منها:' : 'العطور ذات الصلة:');
+  }
+  const detailed = list.length <= 2 || hasAny(nq, INTENT_WORDS.notes) || hasAny(nq, INTENT_WORDS.compare);
+  for (const p of list) lines.push(productLine(p, brandLabel(p), detailed && (named.includes(p) || list.length <= 2)));
+  return lines.join('\n');
+}
+
+/* The system prompt never changes between questions, so Ollama keeps it
+   cached and only has to read the short facts + question each time. */
+function buildSystemPrompt() {
+  const brands = readTable('brands').sort((a, b) => a.order - b.order).map(b => b.label).join('، ');
   return `أنت "لايت"، مساعد المبيعات لمتجر "عطور الريحان" في الموصل.
-تكلّم بالعربية بلهجة عراقية بسيطة ومهذبة (أو بالإنكليزية إذا سألك الزبون بالإنكليزية). اجعل ردك قصيراً: من جملتين إلى خمس جمل، أو قائمة قصيرة عند المقارنة.
+تكلّم بلهجة عراقية بسيطة ومهذبة (أو بالإنكليزية إذا كتب الزبون بالإنكليزية). ردك قصير: جملة إلى ثلاث جمل، أو قائمة قصيرة.
 
-قواعد إلزامية:
-1. استخدم فقط المعلومات الموجودة أدناه. لا تخترع عطراً أو سعراً أو نوتة أو سياسة غير مذكورة.
-2. إذا سُئلت عن عطر غير موجود في القوائم أدناه، قل بصراحة إنه غير متوفر لدينا حالياً واقترح بديلاً قريباً من القائمة.
-3. عند ذكر أي عطر، اذكر اسمه كما هو مكتوب بالضبط مع سعره وحالته (متوفر/نفذت الكمية).
-4. عند المقارنة أو التوصية، اشرح السبب اعتماداً على الوصف والنوتات المكتوبة فقط، ثم أعطِ رأياً واضحاً: أيّهما أنسب ولماذا.
-5. لا تنصح بعطر نفذت كميته إلا مع التنبيه لذلك.
-6. للأسئلة البعيدة عن العطور والمتجر، اعتذر بلطف وأعد الحديث إلى العطور.
+قواعد:
+1. اعتمد فقط على "بيانات المتجر" المرفقة مع السؤال. لا تخترع عطراً أو سعراً أو نوتة.
+2. "حالة التوفر" محسوبة من المخزون الآن: انقلها كما هي بالضبط ولا تخمّن أبداً.
+3. إذا العطر غير موجود أو نافذ، قل ذلك بوضوح واقترح بديلاً متوفراً من البيانات.
+4. اذكر اسم العطر كما هو مكتوب مع سعره.
+5. عند المقارنة أعطِ رأياً واضحاً: أيهما أنسب ولماذا، من الوصف فقط.
+6. الأسئلة البعيدة عن العطور: اعتذر بلطف وارجع للعطور.
 
 معلومات المتجر:
 - الفرعان: حي البلديات (شارع جامع سليمان، مقابل صيدلية الحرة) وحي المثنى (الشارع العام) — الموصل.
-- التوصيل للمنزل برسوم ثابتة 5,000 د.ع، والاستلام من الفرع مجاني.
+- التوصيل للمنزل 5,000 د.ع، والاستلام من الفرع مجاني.
 - الدفع: عند الاستلام، زين كاش / آسيا حوالة، تحويل بنكي.
-- الاستبدال خلال فترة قصيرة إذا لم يُفتح العطر. للتواصل المباشر: واتساب 07718302002.
-
-كل خطوط العطور في المتجر (نظرة عامة):
-${brandOverview()}
-
-العطور الأكثر صلة بسؤال الزبون (بيانات دقيقة ومحدّثة الآن):
-${detail}`;
+- واتساب: 07718302002.
+- الخطوط: ${brands}.`;
 }
 
 /* ---------- model discovery ---------- */
@@ -272,13 +408,13 @@ async function ensureModel() {
 function buildMessages(message, history) {
   const cleanHistory = (Array.isArray(history) ? history : [])
     .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-    .slice(-6)
-    .map(m => ({ role: m.role, content: m.content.slice(0, 1200) }));
-  const question = String(message || '').slice(0, 800);
+    .slice(-4)                                            // last 2 exchanges are enough context
+    .map(m => ({ role: m.role, content: m.content.slice(0, 300) }));
+  const question = String(message || '').slice(0, 500);
   return [
-    { role: 'system', content: buildSystemPrompt(question, cleanHistory) },
+    { role: 'system', content: buildSystemPrompt() },
     ...cleanHistory,
-    { role: 'user', content: question }
+    { role: 'user', content: `بيانات المتجر:\n${buildFacts(question, cleanHistory)}\n\nسؤال الزبون: ${question}` }
   ];
 }
 
@@ -308,7 +444,7 @@ async function openChatStream(message, history) {
       messages: buildMessages(message, history),
       stream: true,
       keep_alive: KEEP_ALIVE,
-      options: { temperature: 0.4, num_ctx: NUM_CTX }
+      options: { temperature: 0.3, num_ctx: NUM_CTX, num_predict: MAX_TOKENS }
     }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
   });
@@ -410,10 +546,20 @@ async function warmUpAgent() {
   await ensureOllama();
   try {
     const model = await ensureModel();
-    const res = await fetch(`${OLLAMA_URL}/api/generate`, {
+    // already loaded? then don't queue a request behind a customer's question
+    const ps = await fetch(`${OLLAMA_URL}/api/ps`, { signal: AbortSignal.timeout(4000) }).then(r => r.json()).catch(() => null);
+    if (ps && Array.isArray(ps.models) && ps.models.some(m => m.name === model || m.model === model)) {
+      return { ok: true, model, alreadyLoaded: true };
+    }
+    // load the model AND read the fixed system prompt once, so Ollama caches it
+    const res = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, prompt: '', keep_alive: KEEP_ALIVE }),
+      body: JSON.stringify({
+        model, stream: false, keep_alive: KEEP_ALIVE,
+        messages: [{ role: 'system', content: buildSystemPrompt() }, { role: 'user', content: 'مرحبا' }],
+        options: { num_ctx: NUM_CTX, num_predict: 1 }
+      }),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
     const body = await res.text();
@@ -432,5 +578,5 @@ async function askAgent(message, history) {
 
 module.exports = {
   checkAgentAvailable, streamAgent, askAgent, warmUpAgent, productsMentioned,
-  retrieveProducts, buildSystemPrompt, OLLAMA_URL, CONFIGURED_MODEL, NUM_CTX
+  retrieveProducts, buildSystemPrompt, buildFacts, buildMessages, namedProducts, OLLAMA_URL, CONFIGURED_MODEL, NUM_CTX
 };
