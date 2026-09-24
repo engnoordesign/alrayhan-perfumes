@@ -962,27 +962,6 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   .profile-id-card .psub{ font-size:12.5px; color:var(--bone-dim); }
   .profile-edit-link{ all:unset; cursor:pointer; font-size:11.5px; color:var(--gold-bright); text-decoration:underline; margin-top:6px; display:inline-block; }
 
-  .wallet-card{
-    background:linear-gradient(135deg, var(--panel-2), var(--panel)); border:1px solid var(--gold-dim);
-    border-radius:10px; padding:24px; margin-bottom:32px;
-  }
-  .wallet-card .wc-label{ font-size:12px; color:var(--bone-dim); margin-bottom:6px; }
-  .wallet-card .wc-balance{ font-family:var(--display); font-size:32px; color:var(--gold-bright); margin-bottom:18px; }
-  .wallet-topup-row{ display:flex; gap:10px; }
-  .wallet-topup-row input{
-    flex:1; background:var(--panel-2); border:1px solid var(--line); border-radius:6px;
-    padding:11px 14px; color:var(--bone); font-family:var(--body); font-size:14px;
-  }
-  .wallet-topup-row input:focus{ outline:none; border-color:var(--gold); }
-
-  .profile-section-title{ font-family:var(--display); font-size:16px; color:var(--gold-bright); margin:0 0 14px; }
-  .tx-row{ display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--line); font-size:13px; }
-  .tx-row .tx-note{ color:var(--bone); }
-  .tx-row .tx-date{ display:block; font-size:11px; color:var(--bone-dim); margin-top:2px; }
-  .tx-row .tx-amount.pos{ color:var(--leaf); font-weight:700; }
-  .tx-row .tx-amount.neg{ color:#C0524B; font-weight:700; }
-  .tx-empty{ color:var(--bone-dim); font-size:13px; text-align:center; padding:30px 0; }
-
   /* ---------- ACCOUNT: login / sign-up extras ---------- */
   .auth-box{ max-height:92vh; overflow-y:auto; }
   .auth-hint{ font-size:10.5px; color:var(--bone-dim); opacity:.85; margin-inline-start:6px; }
@@ -1307,7 +1286,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   </div>
 </div>
 
-<!-- PROFILE / WALLET PANEL -->
+<!-- PROFILE PANEL -->
 <div class="profile-panel" id="profilePanel" aria-label="حسابي">
   <div class="profile-head">
     <h2>حسابي</h2>
@@ -1328,7 +1307,6 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       <button class="ptab active" type="button" data-pane="orders">طلباتي<span class="n" id="pOrdersN"></span></button>
       <button class="ptab" type="button" data-pane="favs">المفضلة<span class="n" id="pFavsN"></span></button>
       <button class="ptab" type="button" data-pane="pre">الطلب المسبق<span class="n" id="pPreN"></span></button>
-      <button class="ptab" type="button" data-pane="wallet">المحفظة</button>
     </div>
 
     <div class="ppane show" id="pane-orders"><div id="pOrders"></div></div>
@@ -1337,20 +1315,6 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       <p style="font-size:12px; color:var(--bone-dim); margin-bottom:12px;">احجز العطور غير المتوفرة حالياً — نتواصل معك فور وصولها.</p>
       <div id="pPre"></div>
     </div>
-    <div class="ppane" id="pane-wallet">
-    <div class="wallet-card">
-      <div class="wc-label">رصيد المحفظة</div>
-      <div class="wc-balance" id="walletBalance">0 د.ع</div>
-      <div class="wallet-topup-row">
-        <input type="text" id="walletTopupInput" inputmode="numeric" placeholder="أدخل مبلغ الشحن">
-        <button class="btn solid" id="walletTopupBtn" type="button">شحن</button>
-      </div>
-    </div>
-
-    <div class="profile-section-title">سجل العمليات</div>
-    <div id="txList"></div>
-    </div>
-
     <button class="btn ghost profile-logout" id="profileLogoutBtn" type="button">تسجيل الخروج</button>
   </div>
 </div>
@@ -2120,7 +2084,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   });
 
   /* =====================================================
-     ACCOUNTS & WALLET — backed by the real server/database.
+     ACCOUNTS — backed by the real server/database.
      Phone codes are shown on-screen because this local dev
      server has no SMS provider wired up (see server.js).
   ===================================================== */
@@ -2160,8 +2124,6 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       guestIcon.style.display = '';
     }
   }
-
-  function fmtIQDWallet(n){ return (n||0).toLocaleString('en-US') + ' د.ع'; }
 
   /* ---- auth modal ---- */
   let pendingPhone = null;          // the phone number OR email the code was sent to
@@ -2333,23 +2295,6 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     document.getElementById('profileName').textContent = u.name || 'بدون اسم';
     document.getElementById('profileUsername').textContent = u.username ? '@' + u.username : '';
     document.getElementById('profileContact').textContent = u.phone ? u.phone : (u.email || '');
-    document.getElementById('walletBalance').textContent = fmtIQDWallet(u.wallet || 0);
-
-    const txList = document.getElementById('txList');
-    const txs = (u.transactions || []).slice().reverse();
-    if(!txs.length){
-      txList.innerHTML = '<div class="tx-empty">لا توجد عمليات بعد.</div>';
-    }else{
-      txList.innerHTML = txs.map(t=>`
-        <div class="tx-row">
-          <div>
-            <div class="tx-note">${t.note}</div>
-            <span class="tx-date">${t.date}</span>
-          </div>
-          <div class="tx-amount ${t.amount >= 0 ? 'pos' : 'neg'}">${t.amount >= 0 ? '+' : ''}${fmtIQDWallet(t.amount)}</div>
-        </div>
-      `).join('');
-    }
   }
 
   /* ---------- log in / sign up with username + password ---------- */
@@ -2603,36 +2548,10 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     }
   });
 
-  document.getElementById('walletTopupBtn').addEventListener('click', async ()=>{
-    const u = currentUser();
-    if(!u) return;
-    const input = document.getElementById('walletTopupInput');
-    const amount = parseInt(String(input.value).replace(/[^\d]/g,''), 10);
-    if(!amount || amount <= 0) return;
-    const res = await fetch('/api/wallet/topup', { method:'POST', headers: userHeaders({'Content-Type':'application/json'}), body: JSON.stringify({ amount }) });
-    if(res.ok){
-      const data = await res.json();
-      cachedUser = data.user;
-      input.value = '';
-      renderProfile();
-    }
-  });
-
   document.getElementById('profileLogoutBtn').addEventListener('click', ()=>{ logout(); });
 
-  /* returns the checkout payment methods list, adding a wallet option when logged in */
-  function getPaymentMethods(){
-    const u = currentUser();
-    const methods = paymentMethods.slice();
-    if(u){
-      methods.unshift({
-        id:'wallet',
-        title:`الدفع من المحفظة (الرصيد: ${fmtIQDWallet(u.wallet||0)})`,
-        desc:'يُخصم المبلغ مباشرة من رصيد محفظتك ويتم التحقق من الرصيد على الخادم.'
-      });
-    }
-    return methods;
-  }
+  /* checkout payment methods (cash on delivery, Zain Cash / Asia Hawala, bank transfer) */
+  function getPaymentMethods(){ return paymentMethods.slice(); }
 
   /* =====================================================
      CHECKOUT PAGE
@@ -2757,16 +2676,6 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       document.getElementById('coSubtotal').textContent = fmtIQD(sub);
       document.getElementById('coDeliveryFee').textContent = fee ? fmtIQD(fee) : 'مجاناً';
       document.getElementById('coGrandTotal').textContent = fmtIQD(sub + fee);
-      // keep the wallet option's displayed balance requirement honest
-      const walletOpt = document.querySelector('#paymentRow input[value="wallet"]');
-      if(walletOpt){
-        const u = currentUser();
-        const enough = u && (u.wallet || 0) >= (sub + fee);
-        const label = walletOpt.closest('.method-option').querySelector('.mdesc');
-        if(label) label.textContent = enough
-          ? 'يُخصم المبلغ مباشرة من رصيد محفظتك ويتم التحقق من الرصيد على الخادم.'
-          : 'الرصيد الحالي لا يكفي لتغطية الإجمالي مع رسوم التوصيل.';
-      }
     }
 
     deliveryRow.addEventListener('change', (e)=>{
@@ -2819,7 +2728,6 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
           submitBtn.textContent = 'إرسال الطلب';
           return;
         }
-        if(data.user){ cachedUser = data.user; } // wallet balance updated server-side
 
         document.getElementById('coOrderId').textContent = data.order.id;
         document.querySelector('.checkout-wrap').style.display = 'none';
@@ -3100,9 +3008,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       return 'نوفر توصيل داخل الموصل، أو يمكنك استلام طلبك مباشرة من أحد الفرعين بدون رسوم توصيل. عند إتمام الطلب اختر الطريقة المناسبة لك.';
     }
     if(has('دفع','فلوس','زين كاش','تحويل','payment')){
-      const u = currentUser();
-      const walletNote = u ? ` وإذا عندك حساب معنا، رصيدك الحالي بالمحفظة ${fmtIQDWallet(u.wallet||0)} وتكدر تدفع منه مباشرة.` : '';
-      return `نوفر عدة طرق للدفع: الدفع عند الاستلام، زين كاش / آسيا حوالة، أو تحويل بنكي مباشر.${walletNote}`;
+      return 'نوفر عدة طرق للدفع: الدفع عند الاستلام، زين كاش / آسيا حوالة، أو تحويل بنكي مباشر.';
     }
     if(has('edt','edp','او دو تواليت','او دو بارفان')){
       return 'الفرق الأساسي هو تركيز الزيوت العطرية:<br><b>EDP (Eau de Parfum)</b> تركيز أعلى وثبات أطول (6-8 ساعات فأكثر).<br><b>EDT (Eau de Toilette)</b> أخف وأنسب للنهار والأجواء الحارة، وثباته أقصر عادة.';
