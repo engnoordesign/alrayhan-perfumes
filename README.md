@@ -296,6 +296,16 @@ To keep Light always available, the server:
   default `-1` = forever), so customers never wait for a cold start;
 - **re-checks Ollama every minute**, and retries a question once if Ollama hiccups.
 
+**Fast, exact answers.** Light's instructions never change between questions, so Ollama
+reads them once and caches them; each question only adds a short "store facts" block the
+server builds for it (about 5 relevant perfumes). The server itself checks stock before the
+model writes anything: when a customer names a perfume ("بلو دايموند موجود؟", "do you have
+Sauvage?", even with a typo like "ساوفاج"), Light receives its exact status — in stock, only
+N left, or sold out — plus the closest in-stock alternatives, and "not sold here" when the
+name isn't in the catalog. It also answers "what's out of stock?", "cheapest", and "most
+expensive" from live data. Stock comes from the product's quantity / availability set in
+the admin panel.
+
 If Ollama is unreachable, Light tells the customer it's reconnecting and gives the WhatsApp
 number. The status line under Light's name shows **🧠 ذكاء اصطناعي · متصل** when it's ready.
 
