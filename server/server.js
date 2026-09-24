@@ -84,7 +84,7 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 /* ---------------------------------------------------------
-   user auth (phone OTP demo + social demo) + wallet
+   user auth (phone OTP demo + social demo)
    NOTE: this is a local/dev auth system. Phone codes are
    returned directly in the API response because there is no
    SMS provider configured. Wire up a real provider (e.g.
@@ -100,7 +100,8 @@ function findUserByToken(users, token) {
 }
 function publicUser(u) {
   if (!u) return null;
-  const { token, passHash, passSalt, ...rest } = u;
+  // wallet/transactions: leftovers from the removed wallet feature, never sent to the browser
+  const { token, passHash, passSalt, wallet, transactions, ...rest } = u;
   return rest;
 }
 
@@ -168,7 +169,7 @@ app.post('/api/auth/phone/verify', (req, res) => {
   let user = findUserByKey(users, key);
   const token = genId('usrtok');
   if (!user) {
-    user = { id: genId('user'), key, method: 'phone', phone, name: 'زبون عطور الريحان', wallet: 0, transactions: [], token };
+    user = { id: genId('user'), key, method: 'phone', phone, name: 'زبون عطور الريحان', token };
     users.push(user);
   } else {
     user.token = token;
@@ -230,7 +231,7 @@ app.post('/api/auth/email/verify', (req, res) => {
   let user = findUserByKey(users, key);
   const token = genId('usrtok');
   if (!user) {
-    user = { id: genId('user'), key, method: 'email', email, name: 'زبون عطور الريحان', wallet: 0, transactions: [], token };
+    user = { id: genId('user'), key, method: 'email', email, name: 'زبون عطور الريحان', token };
     users.push(user);
   } else {
     user.token = token;
@@ -372,10 +373,10 @@ app.post('/api/auth/register/verify', (req, res) => {
     return res.status(409).json({ error: 'هذا الحساب مسجّل مسبقاً — سجّل الدخول' });
   }
   if (!user) {
-    user = { id: genId('user'), key: ckey, method, name: pending.username, wallet: 0, transactions: [] };
+    user = { id: genId('user'), key: ckey, method, name: pending.username };
     users.push(user);
   }
-  // an older code-only account with this phone/email is upgraded in place (keeps wallet & orders)
+  // an older code-only account with this phone/email is upgraded in place (keeps orders)
   user.username = pending.username;
   user.passHash = pending.passHash;
   user.passSalt = pending.passSalt;
@@ -479,7 +480,7 @@ app.post('/api/auth/social', (req, res) => {
   let user = findUserByKey(users, key);
   const token = genId('usrtok');
   if (!user) {
-    user = { id: genId('user'), key, method: provider, email, name, wallet: 0, transactions: [], token };
+    user = { id: genId('user'), key, method: provider, email, name, token };
     users.push(user);
   } else {
     user.token = token;
@@ -495,16 +496,6 @@ app.get('/api/me', requireUser, (req, res) => {
 app.put('/api/me', requireUser, (req, res) => {
   const { name } = req.body || {};
   if (name && name.trim()) req.user.name = name.trim();
-  writeTable('users', req.users);
-  res.json({ user: publicUser(req.user) });
-});
-
-app.post('/api/wallet/topup', requireUser, (req, res) => {
-  const amount = Math.max(0, parseInt((req.body || {}).amount, 10) || 0);
-  if (!amount) return res.status(400).json({ error: 'مبلغ غير صحيح' });
-  req.user.wallet = (req.user.wallet || 0) + amount;
-  req.user.transactions = req.user.transactions || [];
-  req.user.transactions.push({ note: 'شحن المحفظة (تجريبي)', amount, date: new Date().toLocaleDateString('ar-IQ') });
   writeTable('users', req.users);
   res.json({ user: publicUser(req.user) });
 });
@@ -1002,7 +993,7 @@ function orderUserKey(req) {
 }
 
 /* ---------------------------------------------------------
-   orders / checkout — server recomputes totals & validates wallet
+   orders / checkout — server recomputes totals
 --------------------------------------------------------- */
 app.post('/api/orders', async (req, res) => {
   const body = req.body || {};
@@ -1028,21 +1019,9 @@ app.post('/api/orders', async (req, res) => {
   const deliveryFee = deliveryMethod === 'delivery' ? DELIVERY_FEE : 0;
   const total = subtotal + deliveryFee;
 
-  // wallet payment must be validated & deducted server-side (never trust the client)
-  let user = null;
-  let users = null;
-  if (body.paymentMethod === 'wallet') {
-    const auth = req.headers.authorization || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-    users = readTable('users');
-    user = token ? findUserByToken(users, token) : null;
-    if (!user) return res.status(401).json({ error: 'يجب تسجيل الدخول للدفع من المحفظة' });
-    if ((user.wallet || 0) < total) return res.status(400).json({ error: 'رصيد المحفظة غير كافٍ' });
-    user.wallet -= total;
-    user.transactions = user.transactions || [];
-    user.transactions.push({ note: 'شراء من المتجر', amount: -total, date: new Date().toLocaleDateString('ar-IQ') });
-    writeTable('users', users);
-  }
+  // accepted payment methods (the old wallet option was removed)
+  const PAYMENT_METHODS = ['cod', 'zaincash', 'bank'];
+  const paymentMethod = PAYMENT_METHODS.includes(body.paymentMethod) ? body.paymentMethod : 'cod';
 
   const order = {
     id: genId('order'),
@@ -1052,13 +1031,13 @@ app.post('/api/orders', async (req, res) => {
     deliveryMethod,
     branch: body.branch || null,
     address: body.address || null,
-    paymentMethod: body.paymentMethod || 'cod',
+    paymentMethod,
     notes: body.notes || '',
     items: lines,
     subtotal,
     deliveryFee,
     total,
-    userKey: user ? user.key : orderUserKey(req),
+    userKey: orderUserKey(req),
     status: 'new',
     emailSent: false
   };
@@ -1075,7 +1054,7 @@ app.post('/api/orders', async (req, res) => {
     order.emailSent = true;
   }
 
-  res.status(201).json({ order, user: user ? publicUser(user) : null });
+  res.status(201).json({ order });
 });
 
 /* update an order's status (new / confirmed / delivered / cancelled) */

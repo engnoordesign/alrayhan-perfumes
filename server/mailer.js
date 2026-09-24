@@ -53,8 +53,7 @@ const DELIVERY_LABELS = { delivery: 'توصيل للمنزل', pickup: 'استل
 const PAYMENT_LABELS = {
   cod: 'الدفع عند الاستلام',
   zaincash: 'زين كاش / آسيا حوالة',
-  bank: 'تحويل بنكي',
-  wallet: 'الدفع من المحفظة'
+  bank: 'تحويل بنكي'
 };
 const BRANCH_LABELS = { 'البلديات': 'فرع حي البلديات', 'المثنى': 'فرع حي المثنى' };
 

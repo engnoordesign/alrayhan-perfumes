@@ -1,7 +1,7 @@
 {
   "name": "alrayhan-perfumes-server",
   "version": "1.0.0",
-  "description": "Backend for Alrayhan Perfumes \u2014 products, brands, accounts, wallet, and orders API",
+  "description": "Backend for Alrayhan Perfumes \u2014 products, brands, accounts, and orders API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
