@@ -1,0 +1,12 @@
+{
+  "name": "Alrayhan Perfumes",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "Alrayhan store", "onAutoForward": "notify" }
+  },
+  // installs Ollama + Light's AI model once, when the codespace is created
+  "postCreateCommand": "bash .devcontainer/setup-ollama.sh",
+  // the store server also starts Ollama by itself if it isn't running
+  "postStartCommand": "bash .devcontainer/start-ollama.sh"
+}
