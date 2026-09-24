@@ -19,9 +19,9 @@ database, no paid services required to get started.
 - **Real orders with email confirmation** — checkout places the order directly on the server
   (no WhatsApp redirect). The order is saved to `server/data/orders.json` and a formatted
   Arabic notification email is sent to the shop owner through **nodemailer**.
-- **Light can be a real local AI agent** — optional, via Ollama running on your own machine.
-  No cloud API key, no per-message cost. Falls back to the fast rule-based assistant
-  automatically whenever the agent isn't running, so nothing ever breaks.
+- **Light is a real local AI agent** — every answer comes from Ollama running on your own
+  machine. No cloud API key, no per-message cost. There is no rule-based mode: keep Ollama
+  running (the server starts it automatically if it's installed).
 - **A separate admin web app** at `/admin` — its own login screen and interface for managing
   products, brand groups, orders, and stats. The customer-facing storefront no longer contains
   any admin login, panel, or management code at all — management happens exclusively in `/admin`.
@@ -282,18 +282,27 @@ files back and restarting the server.
 
 ## Light — the AI agent
 
-Light has two modes and switches between them automatically:
+Light always answers with a real language model running through [Ollama](https://ollama.com)
+(free, no cloud account, no per-message cost). It holds real conversations: open-ended
+questions, comparisons, "which is better for me and why", and follow-ups that remember what
+you just asked. Answers are grounded in your live product database. There is no rule-based
+fallback mode.
 
-- **AI agent mode** — a real language model running on your own computer through
-  [Ollama](https://ollama.com) (free, no cloud account, no per-message cost). It holds real
-  conversations: open-ended questions, comparisons, "which is better for me and why", and
-  follow-ups that remember what you just asked. Answers are grounded in your live database.
-- **Fast mode** — the built-in rule-based assistant. Used automatically whenever the AI isn't
-  available, so the chat never breaks. Light re-checks for the AI every 20 seconds and switches
-  back on its own once it's available again.
+To keep Light always available, the server:
 
-The status line under Light's name shows the active mode:
-**🧠 وضع الذكاء الاصطناعي مفعّل** (AI) or **متصل الآن · رد فوري** (fast).
+- **starts Ollama by itself** if it's installed but not running (on this same machine);
+- **downloads the model** set in `OLLAMA_MODEL` if Ollama has no model yet (first run only);
+- **loads the model into memory at startup and keeps it loaded** (`OLLAMA_KEEP_ALIVE`,
+  default `-1` = forever), so customers never wait for a cold start;
+- **re-checks Ollama every minute**, and retries a question once if Ollama hiccups.
+
+If Ollama is unreachable, Light tells the customer it's reconnecting and gives the WhatsApp
+number. The status line under Light's name shows **🧠 ذكاء اصطناعي · متصل** when it's ready.
+
+**GitHub Codespaces:** the `.devcontainer` folder installs Ollama and the model automatically
+when a new codespace is created. In an existing codespace, run
+`bash .devcontainer/setup-ollama.sh` once. A 2-core codespace has no GPU, so answers are
+noticeably slower than on a PC; a 4-core machine type helps.
 
 ### How it works (and what was fixed)
 
