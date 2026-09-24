@@ -216,6 +216,9 @@
   .field-row{ display:flex; gap:12px; flex-wrap:wrap; }
 
   /* mail settings */
+  .sec-warn{ display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; padding:10px 16px;
+    background:rgba(192,82,75,0.15); border-bottom:1px solid rgba(192,82,75,0.5); color:#E4948E; font-size:13px; text-align:center; }
+  .sec-warn[hidden]{ display:none; }
   .mail-card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px; max-width:560px; }
   .mail-hint{ display:block; font-size:11.5px; color:var(--bone-dim); margin-top:6px; }
   .mail-adv summary{ cursor:pointer; font-size:12.5px; color:var(--bone-dim); }
@@ -368,6 +371,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       <button class="tab" data-view="orders" type="button">الطلبات</button>
       <button class="tab" data-view="stats" type="button">الإحصائيات</button>
       <button class="tab" data-view="mail" type="button">البريد</button>
+      <button class="tab" data-view="security" type="button">الأمان</button>
     </div>
     <div style="display:flex; gap:8px;">
       <button class="btn ghost sm theme-btn" id="themeBtn" type="button" title="الوضع الفاتح / الداكن" aria-label="تبديل الوضع الفاتح والداكن">
@@ -379,6 +383,10 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     </div>
   </div>
 
+  <div class="sec-warn" id="secWarn" hidden>
+    ⚠️ كلمة مرور الإدارة الحالية منشورة على GitHub — غيّرها الآن.
+    <button class="btn sm solid" type="button" id="secWarnBtn">تغيير كلمة المرور</button>
+  </div>
   <div class="wrap">
     <!-- PRODUCTS -->
     <div class="view show" id="view-products">
@@ -485,6 +493,31 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
           <li>انسخ الرمز (16 حرفاً) والصقه هنا واضغط «حفظ والتحقق».</li>
         </ol>
         <b>لا تضع كلمة المرور في ملف على GitHub</b> — Google تُلغي كلمات المرور المسرّبة، ويستطيع أي شخص استخدامها. تغيير كلمة مرور حساب Google يُلغيها أيضاً.
+      </div>
+    </div>
+
+    <!-- SECURITY -->
+    <div class="view" id="view-security">
+      <div class="view-head">
+        <div>
+          <h2>الأمان</h2>
+          <div class="sub">غيّر كلمة مرور لوحة الإدارة. تُحفظ مشفّرة على السيرفر فقط (لا تُرفع إلى GitHub)، وتسجّل خروج أي جهاز آخر دخل بالكلمة القديمة.</div>
+        </div>
+      </div>
+      <form id="pwForm" class="mail-card" autocomplete="off">
+        <div class="field"><label>كلمة المرور الحالية</label><input name="current" type="password" dir="ltr" autocomplete="current-password" required></div>
+        <div class="field"><label>كلمة المرور الجديدة (10 أحرف على الأقل)</label><input name="next" type="password" dir="ltr" autocomplete="new-password" minlength="10" required></div>
+        <div class="field"><label>أعد كتابة كلمة المرور الجديدة</label><input name="confirm" type="password" dir="ltr" autocomplete="new-password" minlength="10" required></div>
+        <div class="mail-actions"><button class="btn solid" type="submit" id="pwSaveBtn">تغيير كلمة المرور</button></div>
+        <p class="mail-hint" id="pwMsg"></p>
+      </form>
+      <div class="mail-help">
+        <b>نصائح:</b>
+        <ol>
+          <li>استخدم جملة طويلة يصعب تخمينها، مثل ثلاث كلمات وأرقام.</li>
+          <li>بعد 5 محاولات خاطئة من نفس الجهاز، يُقفل الدخول 15 دقيقة.</li>
+          <li>جلسة الإدارة تنتهي تلقائياً بعد 12 ساعة.</li>
+        </ol>
       </div>
     </div>
 
@@ -774,9 +807,33 @@ function doLogout(){
 }
 $('#logoutBtn').addEventListener('click', doLogout);
 
+async function checkSecurity(){
+  try{ const s = await api('/api/admin/security'); $('#secWarn').hidden = !!s.passwordSetInPanel; }catch(e){}
+}
+$('#secWarnBtn').addEventListener('click', ()=> document.querySelector('.tab[data-view="security"]').click());
+
+$('#pwForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const f = e.target, msg = $('#pwMsg');
+  msg.textContent = '';
+  if(f.next.value !== f.confirm.value){ msg.textContent = 'كلمتا المرور الجديدتان غير متطابقتين.'; return; }
+  $('#pwSaveBtn').disabled = true;
+  try{
+    const r = await api('/api/admin/password', { method:'PUT', body: JSON.stringify({ current: f.current.value, next: f.next.value }) });
+    token = r.token;
+    localStorage.setItem(TOKEN_KEY, token);
+    f.reset();
+    msg.textContent = '✓ تم تغيير كلمة المرور. أي جهاز آخر كان داخلاً تم تسجيل خروجه.';
+    toast('تم تغيير كلمة المرور');
+    checkSecurity();
+  }catch(err){ msg.textContent = err.message; }
+  $('#pwSaveBtn').disabled = false;
+});
+
 async function enterApp(){
   $('#loginScreen').style.display = 'none';
   $('#app').classList.add('show');
+  checkSecurity();
   await loadAll();
 }
 
@@ -791,6 +848,7 @@ $$('.tab').forEach(tab=>{
     if(tab.dataset.view === 'stats') renderStats();
     if(tab.dataset.view === 'ads') loadAds();
     if(tab.dataset.view === 'mail') loadMail();
+    if(tab.dataset.view === 'security') $('#pwMsg').textContent = '';
   });
 });
 
