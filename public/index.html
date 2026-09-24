@@ -821,6 +821,8 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   .ltyping span{ width:6px; height:6px; border-radius:50%; background:var(--bone-dim); animation:ltDot 1.1s ease-in-out infinite; }
   .ltyping span:nth-child(2){ animation-delay:.15s; }
   .ltyping span:nth-child(3){ animation-delay:.3s; }
+  .ltyping{ align-items:center; }
+  .ltyping .lslow{ font-style:normal; font-size:11.5px; color:var(--bone-dim); margin-inline-start:6px; }
   @keyframes ltDot{ 0%,60%,100%{ opacity:.3; transform:translateY(0);} 30%{ opacity:1; transform:translateY(-3px);} }
 
   .light-quick{ display:flex; flex-wrap:wrap; gap:7px; padding:0 16px 12px; }
@@ -2799,7 +2801,9 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   });
 
   /* =====================================================
-     LIGHT — AI SUPPORT CHAT (fast, upgraded rule-based assistant)
+     LIGHT — AI SUPPORT CHAT. Every answer comes from the local AI
+     (Ollama, through the server's /api/chat). There is no rule-based
+     fallback: if the AI is unreachable Light says so and retries.
   ===================================================== */
   const lightBtn = document.getElementById('lightToggleBtn');
   const lightPanel = document.getElementById('lightPanel');
@@ -2812,17 +2816,16 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   let lightOpened = false;
   let agentAvailable = false;
   let agentChecked = false;
-  let agentLastCheck = 0;
-  const AGENT_RECHECK_MS = 20000; // retry the agent this often after a failure
+  const LIGHT_WHATSAPP = '07718302002';
   let lightConversation = []; // {role, content} turns sent to the agent for context
 
   function setAgentStatusUI(on){
     const statusEl = document.getElementById('lightStatusText');
     if(on){
-      statusEl.textContent = '🧠 وضع الذكاء الاصطناعي مفعّل';
+      statusEl.textContent = '🧠 ذكاء اصطناعي · متصل';
       statusEl.classList.add('agent-mode');
     }else{
-      statusEl.textContent = 'متصل الآن · رد فوري';
+      statusEl.textContent = '⏳ جارٍ الاتصال بالذكاء الاصطناعي…';
       statusEl.classList.remove('agent-mode');
     }
   }
@@ -2836,7 +2839,6 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       agentAvailable = false;
     }
     agentChecked = true;
-    agentLastCheck = Date.now();
     setAgentStatusUI(agentAvailable);
     return agentAvailable;
   }
@@ -2853,19 +2855,6 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       .replace(/^\s*[-*•]\s+/gm, '• ')
       .replace(/^#{1,6}\s*/gm, '')
       .replace(/\n/g, '<br>');
-  }
-
-  /* normalizes Arabic text so matching survives spelling/diacritic variance */
-  function normalizeAr(str){
-    return (str || '')
-      .toLowerCase()
-      .replace(/[\u064B-\u0652]/g, '')
-      .replace(/[إأآا]/g, 'ا')
-      .replace(/ة/g, 'ه')
-      .replace(/ى/g, 'ي')
-      .replace(/[ؤئ]/g, 'ي')
-      .replace(/\s+/g, ' ')
-      .trim();
   }
 
   function lightAddMsg(text, who){
@@ -2938,187 +2927,11 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     });
   }
 
-  /* finds products whose name/notes overlap with the query, in either direction */
-  function lightFindProducts(query){
-    const nq = normalizeAr(query);
-    const qLower = query.toLowerCase();
-    return products.filter(p=>{
-      if(p.available === false) return false;
-      const nAr = normalizeAr(p.ar);
-      const nEn = (p.name || '').toLowerCase();
-      const nNotes = normalizeAr(p.notes || '');
-      return (nAr.length > 1 && (nq.includes(nAr) || nAr.includes(nq))) ||
-             (nEn && qLower.includes(nEn)) ||
-             (nq.length > 2 && nNotes.includes(nq));
-    }).slice(0, 3);
-  }
-
-  /* maps spoken/typed brand names (Arabic variants + English) to catalog brand keys */
-  const brandKeywordMap = {
-    ibraq: ['براق', 'الماس', 'ايبراق'],
-    assaf: ['عساف', 'اساف', 'assaf'],
-    armaf: ['ارماف', 'كلوب دي نوي', 'club de nuit', 'armaf'],
-    afnan: ['افنان', '9pm', '9 بي ام', 'afnan'],
-    hawas: ['هواس', 'رصاصي', 'hawas'],
-    alhambra: ['الحمبرا', 'حمبرا', 'ميزون', 'alhambra'],
-    bold: ['بولد', 'لطافة', 'bold'],
-    nightdeparis: ['نايت دو باريس', 'نايت باريس', 'night de paris'],
-    aurora: ['اورورا', 'aurora'],
-    nitro: ['نيترو', 'دومونت', 'nitro', 'dumont'],
-    designer: ['ساڤاج', 'sauvage', 'شانيل', 'chanel', 'ارماني', 'armani', 'رالف لورين', 'ralph lauren', 'فيرساتشي', 'versace', 'غوتييه', 'gaultier', 'باكو رابان', 'invictus', 'انفيكتوس']
-  };
-  function detectBrand(rawMsg){
-    const nq = normalizeAr(rawMsg);
-    const lower = rawMsg.toLowerCase();
-    for(const brand in brandKeywordMap){
-      for(const kw of brandKeywordMap[brand]){
-        if(nq.includes(normalizeAr(kw)) || lower.includes(kw.toLowerCase())) return brand;
-      }
-    }
-    return null;
-  }
-
-  /* parses a spoken budget like "30 الف" or "30000" into a number of IQD */
-  function parseBudget(msg){
-    const m = msg.match(/(\d{2,3}(?:[,.]\d{3})?)\s*(الف|ألف|k)?/i);
-    if(!m) return null;
-    let num = parseInt(m[1].replace(/[,.]/g, ''), 10);
-    if(!num) return null;
-    if(m[2] || num < 1000) num = num * 1000;
-    return num;
-  }
-
-  function lightAnswer(rawMsg){
-    const msg = rawMsg.trim().toLowerCase();
-    const nq = normalizeAr(rawMsg);
-    const has = (...words)=> words.some(w=>msg.includes(w));
-
-    if(has('مرحبا','هلا','السلام','سلام','hi','hello','هاي')){
-      const u = currentUser();
-      const name = u && u.name ? u.name.split(' ')[0] : '';
-      return `أهلاً ${name ? name + ' ' : ''}بك في عطور الريحان 🌸 أنا لايت، جاهز أساعدك تختار العطر المناسب أو أجاوب على أي سؤال عن المجموعة. شنو تحتاج؟`;
-    }
-    if(has('شكرا','مشكور','thank')){
-      return 'العفو 🌸 إذا احتجت أي شي ثاني أنا هنا.';
-    }
-    if(has('فرع','فروع','وين','أين','اين','عنوان','موقع')){
-      return 'عندنا فرعين بالموصل:<br><b>الفرع الأول</b> — حي البلديات، شارع جامع سليمان، مقابل صيدلية الحرة.<br><b>الفرع الثاني</b> — حي المثنى، الشارع العام.';
-    }
-    if(has('توصيل','دليفري','delivery')){
-      return 'نوفر توصيل داخل الموصل، أو يمكنك استلام طلبك مباشرة من أحد الفرعين بدون رسوم توصيل. عند إتمام الطلب اختر الطريقة المناسبة لك.';
-    }
-    if(has('دفع','فلوس','زين كاش','تحويل','payment')){
-      return 'نوفر عدة طرق للدفع: الدفع عند الاستلام، زين كاش / آسيا حوالة، أو تحويل بنكي مباشر.';
-    }
-    if(has('edt','edp','او دو تواليت','او دو بارفان')){
-      return 'الفرق الأساسي هو تركيز الزيوت العطرية:<br><b>EDP (Eau de Parfum)</b> تركيز أعلى وثبات أطول (6-8 ساعات فأكثر).<br><b>EDT (Eau de Toilette)</b> أخف وأنسب للنهار والأجواء الحارة، وثباته أقصر عادة.';
-    }
-    if(has('كم يدوم','ثبات','رشات','كم رشة')){
-      return 'نصيحة عامة: 2-3 رشات على نقاط النبض (الرقبة، المعصم) كافية. عطور EDP تدوم عادة 6-8 ساعات، بينما التركيزات الأقوى مثل بعض قطع مجموعة الماس أو خط بولد قد تدوم أطول.';
-    }
-    if(has('هدية','هديه','gift')){
-      return 'لدينا باقات هدايا جاهزة من آي براق: <b>باقة العروس</b>، <b>باقة الأعياد</b>، و<b>باقة الماس المزدوجة/الثلاثية</b>. إذا تريد اقتراح شخصي، قلي هل الهدية لرجل أو امرأة وأي جو يفضلون (منعش، دافئ، حلو، عود)؟';
-    }
-    if(has('استبدال','ارجاع','إرجاع','تغيير')){
-      return 'يمكن استبدال العطر خلال فترة قصيرة من الشراء إذا لم يُفتح أو يُستخدم — للتفاصيل الدقيقة تواصل معنا مباشرة على واتساب.';
-    }
-    if(has('احتاج شخص','مو فاهم','موظف','بشري','مساعدة حقيقية')){
-      return 'يمكنك التواصل مباشرة مع فريقنا عبر واتساب على <b>07718302002</b> وسنكون سعداء بمساعدتك.';
-    }
-
-    /* comparison: "الفرق بين X و Y" / "قارن بين X و Y" */
-    if(has('الفرق بين','قارن بين','ايهما افضل','أيهما أفضل','مقارنة')){
-      const found = [];
-      for(const p of products){
-        if(found.length >= 2) break;
-        const nAr = normalizeAr(p.ar);
-        if(nAr.length > 1 && nq.includes(nAr) && !found.includes(p)) found.push(p);
-      }
-      if(found.length === 2){
-        return {
-          text: `مقارنة سريعة بين <b>${found[0].ar}</b> و<b>${found[1].ar}</b>:<br><br>
-            <b>${found[0].ar}</b> — ${found[0].notes}<br>السعر: ${found[0].price}<br><br>
-            <b>${found[1].ar}</b> — ${found[1].notes}<br>السعر: ${found[1].price}`,
-          products: []
-        };
-      }
-      if(found.length === 1){
-        return { text: `لكيت ${found[0].ar} بس ما عرفت العطر الثاني اللي تريد تقارنه فيه، اكتب اسمه بالضبط.`, products: [found[0]] };
-      }
-    }
-
-    /* budget-aware recommendation */
-    if(has('ميزانية','ميزانيتي','عندي','تحت','اقل من','أقل من','بجيت')){
-      const budget = parseBudget(rawMsg);
-      if(budget){
-        const inBudget = products.filter(p=>p.available !== false && p.priceNum > 0 && p.priceNum <= budget)
-          .sort((a,b)=> b.priceNum - a.priceNum).slice(0, 4);
-        if(inBudget.length){
-          return { text: `بميزانية ${budget.toLocaleString('en-US')} د.ع، أفضل خياراتنا:`, products: inBudget };
-        }
-        return { text: 'ما لكيت عطر بهاي الميزانية بالضبط — جرب ترفعها شوي أو اسألني عن خط معين مثل نيترو أو هواس.', products: [] };
-      }
-    }
-
-    /* cheapest / most expensive */
-    if(has('الارخص','أرخص','ارخص','اوطى سعر','أوطى سعر')){
-      const cheapest = products.filter(p=>p.available !== false).sort((a,b)=>a.priceNum-b.priceNum).slice(0,3);
-      return { text: 'أرخص 3 عطور عندنا حالياً:', products: cheapest };
-    }
-    if(has('الاغلى','أغلى','اغلى','افخم')){
-      const priciest = products.filter(p=>p.available !== false).sort((a,b)=>b.priceNum-a.priceNum).slice(0,3);
-      return { text: 'أفخم عطورنا — من العطور العالمية الأصلية:', products: priciest };
-    }
-
-    /* scent-family recommendations */
-    if(has('صيف','منعش','حار','خفيف')){
-      const items = lightFindProducts('بلو اكوا').concat(lightFindProducts('هواس آيس')).concat(lightFindProducts('نيترو بلو'));
-      return { text: 'للأجواء الحارة أنصحك بعطور منعشة ومائية:', products: items.slice(0,3) };
-    }
-    if(has('شتاء','دافئ','بارد','مساء','مسائي')){
-      const items = lightFindProducts('بلاك انسنس').concat(lightFindProducts('بلاك كاربون')).concat(lightFindProducts('بولد انتنس'));
-      return { text: 'للمساء والشتاء جرب عطور خشبية دافئة وثباتها طويل:', products: items.slice(0,3) };
-    }
-    if(has('عود','بخور','شرقي')){
-      const items = lightFindProducts('كولينان').concat(lightFindProducts('بولد عود')).concat(lightFindProducts('هواس عود'));
-      return { text: 'من محبي العود جرب هذي الخيارات:', products: items.slice(0,3) };
-    }
-    if(has('نسائي','زهري','بنات','حريم')){
-      const items = lightFindProducts('بينك ساكورا').concat(lightFindProducts('روج الحمبرا')).concat(lightFindProducts('بينك ديفا'));
-      return { text: 'من العطور الزهرية النسائية أنصحك بـ:', products: items.slice(0,3) };
-    }
-
-    /* brand-wide browsing */
-    const brandHit = detectBrand(rawMsg);
-    if(brandHit){
-      const items = products.filter(p=>p.brand === brandHit && p.available !== false).slice(0,4);
-      if(items.length){
-        return { text: `من خط ${brandMeta[brandHit].label}:`, products: items };
-      }
-    }
-
-    /* direct product name / note search */
-    const matches = lightFindProducts(rawMsg);
-    if(matches.length){
-      return { text: matches.length > 1 ? 'لكيت هذي النتائج:' : `${matches[0].ar} — ${matches[0].notes}`, products: matches };
-    }
-
-    return 'ما توصلت أفهم سؤالك تماماً 🙏 جرب تسألني عن اسم عطر معين، خط معين (مثل نيترو أو هواس)، ميزانيتك، أو نوع الرائحة اللي تدور عليها (منعش، دافئ، عود، زهري) — أو تواصل مباشرة مع فريقنا على واتساب.';
-  }
-
   let lightBusy = false;
-
-  function lightFallbackReply(text){
-    const delay = 350 + Math.random()*300;
-    setTimeout(()=>{
-      lightHideTyping();
-      lightAddBotResponse(lightAnswer(text));
-    }, delay);
-  }
 
   /* Streams the agent's reply into a chat bubble as it's written.
      Returns true if the agent answered (fully or partly), false if it
-     couldn't start at all — in which case the caller falls back. */
+     couldn't start at all. */
   async function lightAskAgent(text){
     let res;
     try{
@@ -3191,21 +3004,28 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     lightInput.value = '';
     lightShowTyping();
 
-    // if the agent was down, quietly check again now and then
-    if(!agentAvailable && Date.now() - agentLastCheck > AGENT_RECHECK_MS){
-      await checkAgentStatus();
-    }
+    // the first answer can take a few seconds while the model loads
+    const slowHint = setTimeout(()=>{
+      const t = document.getElementById('lightTypingIndicator');
+      if(t && !t.querySelector('.lslow')) t.insertAdjacentHTML('beforeend', '<em class="lslow">لايت يفكّر…</em>');
+    }, 5000);
 
-    let answered = false;
-    if(agentAvailable){
+    let answered = await lightAskAgent(text);
+    if(!answered){
+      // one quiet retry — Ollama may have been busy or just waking up
+      await new Promise(r=>setTimeout(r, 1500));
       answered = await lightAskAgent(text);
-      if(!answered){
-        agentAvailable = false;       // fall back for now…
-        agentLastCheck = Date.now();  // …and retry after AGENT_RECHECK_MS
-        setAgentStatusUI(false);
-      }
     }
-    if(!answered) lightFallbackReply(text);
+    clearTimeout(slowHint);
+    lightHideTyping();
+
+    if(answered){
+      if(!agentAvailable){ agentAvailable = true; setAgentStatusUI(true); }
+    }else{
+      agentAvailable = false;
+      setAgentStatusUI(false);
+      lightAddMsg(`عذراً، لايت غير متصل بالذكاء الاصطناعي حالياً 🙏 جرّب بعد لحظات، أو راسلنا مباشرة على واتساب <b dir="ltr">${LIGHT_WHATSAPP}</b>.`, 'bot');
+    }
     lightBusy = false;
   }
 
@@ -3222,9 +3042,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       if(!agentChecked) await checkAgentStatus();
       const u = currentUser();
       const name = u && u.name ? u.name.split(' ')[0] : '';
-      const greeting = agentAvailable
-        ? `أهلاً ${name ? name + ' ' : ''}👋 أنا <b>لايت</b>، وأشتغل الحين بذكاء اصطناعي محلي — اسألني أي سؤال عن عطورنا، قارن بين عطرين، أو اطلب رأيي بأيهم أنسب لك، وراح أجاوبك بشكل مفصّل.`
-        : `أهلاً ${name ? name + ' ' : ''}👋 أنا <b>لايت</b>، مساعد عطور الريحان الذكي. اسألني عن أي عطر، خط معين، ميزانيتك، أو خلّيني أقترح عليك عطر يناسبك — وتكدر تضيف أي اقتراح للسلة مباشرة من هنا.`;
+      const greeting = `أهلاً ${name ? name + ' ' : ''}👋 أنا <b>لايت</b>، مساعد عطور الريحان بالذكاء الاصطناعي — اسألني عن أي عطر، قارن بين عطرين، أو قلّي ميزانيتك وذوقك وأقترح عليك الأنسب، وتكدر تضيف أي اقتراح للسلة مباشرة من هنا.`;
       lightAddMsg(greeting, 'bot');
       lightRenderQuick();
     }
