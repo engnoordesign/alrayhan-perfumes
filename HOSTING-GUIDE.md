@@ -244,17 +244,9 @@ certbot --nginx -d alrayhanperfumes.com -d www.alrayhanperfumes.com
 nano /var/www/alrayhan-system/server/.env
 ```
 
-أضف إعدادات Gmail (راجع `README.md` لتفاصيل إنشاء App Password):
-
-```
-OWNER_EMAIL=youraddress@gmail.com
-MAIL_FROM=Alrayhan Perfumes <youraddress@gmail.com>
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=youraddress@gmail.com
-SMTP_PASS=رمز-التطبيق-المكوّن-من-16-حرف
-```
+إعدادات Gmail **لا تُكتب هنا** — بعد تشغيل السيرفر افتح لوحة الإدارة ← تبويب «البريد»
+وأدخل حساب Gmail وكلمة مرور التطبيق (راجع `README.md`). تُحفظ في
+`server/data/mail-settings.json` على السيرفر فقط، ولا تُحذف عند إعادة التشغيل.
 
 ثم:
 

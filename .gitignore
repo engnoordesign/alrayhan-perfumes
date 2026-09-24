@@ -12,6 +12,10 @@ package-lock.json
 server/data/users.json
 server/data/orders.json
 
+# ---- email account + app password (set from the admin panel, tab "البريد") ----
+server/data/mail-settings.json
+server/data/mail-settings.json.tmp
+
 # ---- uploaded photos (back these up separately, see HOSTING-GUIDE.md) ----
 server/uploads/*
 !server/uploads/.gitkeep

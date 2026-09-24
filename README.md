@@ -41,9 +41,9 @@ database, no paid services required to get started.
 - **Phone verification codes are shown on-screen**, not texted, because there's no SMS
   provider configured. Search `server/server.js` for `send-code` and wire in a real provider
   (Twilio, etc.) before this ever goes on the public internet.
-- **Order emails need SMTP credentials** to actually send. Until you fill in the SMTP settings
-  in `server/.env`, orders are still saved normally — the email step is just skipped with a
-  console warning, so checkout never breaks.
+- **Order emails need a Gmail app password** to actually send. Until you set it in the admin
+  panel (tab «البريد»), orders are still saved normally and their emails wait in a queue that
+  sends them as soon as mail works — checkout never breaks.
 - **Google/Apple sign-in is simulated** with a simple name+email form — there's no real OAuth
   handshake. Wiring up real Google/Apple sign-in requires registering the app with each
   provider and doing the token verification server-side.
@@ -150,31 +150,27 @@ your WhatsApp Manager). Never commit `server/.env` — the token gives full acce
 When a customer checks out, the order is placed **directly** — no WhatsApp redirect — and the
 server emails you the details automatically.
 
-To turn the emails on:
+To turn the emails on (no file editing, no restart):
 
-1. Copy `server/.env.example` to `server/.env`
-2. Fill in `OWNER_EMAIL` (where you want order notifications to arrive) and your SMTP details
+1. Turn on 2-Step Verification on your Google account, then create an **App Password** at
+   <https://myaccount.google.com/apppasswords> (Gmail will not accept your normal password).
+2. Open the admin panel → tab **«البريد»**, enter the Gmail address, the 16-character app
+   password, and the address where orders should arrive. Press **«حفظ والتحقق»**, then
+   **«إرسال إيميل تجريبي»** to confirm.
 
-**Using Gmail** (the most common case):
+The settings are saved in `server/data/mail-settings.json`. That file is in `.gitignore`, so it
+is **never uploaded to GitHub** and never overwritten by a git pull or re-upload; it survives
+every server restart. The admin panel never shows the saved password again.
 
-```
-OWNER_EMAIL=youraddress@gmail.com
-MAIL_FROM=Alrayhan Perfumes <youraddress@gmail.com>
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=youraddress@gmail.com
-SMTP_PASS=your-16-character-app-password
-```
+**If the internet or Gmail is down**, orders are still saved. Their emails wait in a queue that
+retries every 2 minutes and right after the server starts, so every order is emailed once the
+connection is back. The «الطلبات» tab shows which emails are still waiting.
 
-Gmail will **not** accept your normal account password here. Turn on 2-Step Verification on
-your Google account, then generate an **App Password** at
-<https://myaccount.google.com/apppasswords> and paste that 16-character code as `SMTP_PASS`.
+**Never put the app password in a file on GitHub.** Google revokes passwords that leak, and
+anyone who sees it can send email as your shop. Changing your Google account password also
+revokes every app password, so you'd then create a new one and save it in the panel again.
 
-Restart the server. On startup you'll see either `✅ إعدادات البريد سليمة` (working) or a
-warning explaining what's wrong. If email is misconfigured or your mail server is temporarily
-down, **orders still go through normally** — the email is simply skipped and retried on the
-next order, so a mail problem can never cost you a sale.
+(Old way, still supported: the `SMTP_*` lines in `server/.env`. Settings saved in the panel win.)
 
 ## Putting it on GitHub
 
