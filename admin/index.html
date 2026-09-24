@@ -799,6 +799,7 @@ async function doLogin(){
 }
 
 function doLogout(){
+  if(token) fetch('/api/admin/logout', { method:'POST', headers:{ 'Authorization': 'Bearer ' + token } }).catch(()=>{});
   token = null;
   localStorage.removeItem(TOKEN_KEY);
   $('#app').classList.remove('show');
