@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -22,9 +21,43 @@ const ADMIN_PASSWORD_FROM_ENV = Boolean(process.env.ADMIN_PASSWORD);
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || crypto.randomBytes(9).toString('base64url');
 const DELIVERY_FEE = parseInt(process.env.DELIVERY_FEE, 10) || 5000;
 
-app.use(cors());
-app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+/* ---------------------------------------------------------
+   security basics
+--------------------------------------------------------- */
+app.disable('x-powered-by');
+// behind a reverse proxy (nginx, Codespaces) on this same machine the real
+// client IP comes in X-Forwarded-For; never trust it from anywhere else
+app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'"
+  ].join('; '));
+  if (req.secure) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+
+app.use(express.json({ limit: '100kb' }));
+
+// uploads: only real image files, served as images, never as pages
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+app.use('/uploads', (req, res, next) => {
+  if (!/^\/[\w.-]+\.(jpe?g|png|webp|gif)$/i.test(req.path)) return res.status(404).end();
+  next();
+}, express.static(UPLOADS_DIR, { dotfiles: 'deny', index: false }));
 app.use('/admin', express.static(path.join(__dirname, '..', 'admin')));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
@@ -34,6 +67,35 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 function genId(prefix) {
   return `${prefix}_${Date.now().toString(36)}${crypto.randomBytes(4).toString('hex')}`;
 }
+/* login tokens: 256 random bits — impossible to guess */
+function genToken(prefix) {
+  return `${prefix}_${crypto.randomBytes(32).toString('base64url')}`;
+}
+
+/* simple in-memory rate limiter, per client IP */
+function rateLimit({ windowMs, max, message }) {
+  const hits = new Map();
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of hits) if (v.reset < now) hits.delete(k);
+  }, windowMs).unref();
+  return (req, res, next) => {
+    const key = req.ip || 'unknown';
+    const now = Date.now();
+    let h = hits.get(key);
+    if (!h || h.reset < now) { h = { n: 0, reset: now + windowMs }; hits.set(key, h); }
+    if (++h.n > max) {
+      res.setHeader('Retry-After', Math.ceil((h.reset - now) / 1000));
+      return res.status(429).json({ error: message || 'طلبات كثيرة — حاول بعد قليل' });
+    }
+    next();
+  };
+}
+const limitCodes = rateLimit({ windowMs: 60 * 60 * 1000, max: 8, message: 'طلبت أكواداً كثيرة — حاول بعد ساعة' });
+const limitAuth = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, message: 'محاولات كثيرة — حاول بعد ربع ساعة' });
+const limitOrders = rateLimit({ windowMs: 10 * 60 * 1000, max: 5, message: 'طلبات كثيرة من نفس الجهاز — حاول بعد قليل أو تواصل معنا على واتساب' });
+const limitChat = rateLimit({ windowMs: 60 * 1000, max: 12, message: 'رسائل كثيرة — انتظر دقيقة' });
+const limitLookup = rateLimit({ windowMs: 60 * 1000, max: 60 });
 function fmtIQD(n) {
   return `${Number(n || 0).toLocaleString('en-US')} د.ع`;
 }
@@ -65,25 +127,81 @@ function slugify(text) {
 /* ---------------------------------------------------------
    admin auth (single shared password -> short-lived tokens)
 --------------------------------------------------------- */
-const adminTokens = new Set();
+const ADMIN_FILE = path.join(__dirname, 'data', 'admin.json'); // git-ignored
+const ADMIN_TOKEN_TTL = 12 * 60 * 60 * 1000;                   // admin sessions last 12 hours
+const adminTokens = new Map();                                   // token -> expiresAt
+
+function readAdminHash() {
+  try { const a = JSON.parse(fs.readFileSync(ADMIN_FILE, 'utf8')); return a.hash && a.salt ? a : null; }
+  catch (e) { return null; }
+}
+/* the password set in the admin panel wins; .env ADMIN_PASSWORD is only the first-run fallback */
+function checkAdminPassword(password) {
+  const pw = String(password || '');
+  const saved = readAdminHash();
+  if (saved) {
+    const h = crypto.scryptSync(pw, saved.salt, 64);
+    return crypto.timingSafeEqual(h, Buffer.from(saved.hash, 'hex'));
+  }
+  const a = crypto.createHash('sha256').update(pw).digest();
+  const b = crypto.createHash('sha256').update(ADMIN_PASSWORD).digest();
+  return crypto.timingSafeEqual(a, b);
+}
 
 function requireAdmin(req, res, next) {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token || !adminTokens.has(token)) {
+  const exp = token && adminTokens.get(token);
+  if (!exp || exp < Date.now()) {
+    if (token) adminTokens.delete(token);
     return res.status(401).json({ error: 'unauthorized' });
   }
   next();
 }
 
-app.post('/api/admin/login', (req, res) => {
+// 5 wrong passwords from one IP → that IP is locked out for 15 minutes
+const adminFails = new Map(); // ip -> { n, until }
+app.post('/api/admin/login', async (req, res) => {
+  const ip = req.ip || 'unknown';
+  const f = adminFails.get(ip);
+  if (f && f.until > Date.now()) {
+    return res.status(429).json({ error: 'محاولات كثيرة — حاول بعد 15 دقيقة' });
+  }
   const { password } = req.body || {};
-  if (password !== ADMIN_PASSWORD) {
+  if (!checkAdminPassword(password)) {
+    const n = (f && f.until && f.until <= Date.now() ? 0 : (f ? f.n : 0)) + 1;
+    adminFails.set(ip, { n, until: n >= 5 ? Date.now() + 15 * 60 * 1000 : 0 });
+    console.warn(`  🔒 فشل دخول الإدارة من ${ip} (${n})`);
+    await new Promise(r => setTimeout(r, 700)); // slow down guessing
     return res.status(401).json({ error: 'كلمة المرور غير صحيحة' });
   }
-  const token = genId('admtok');
-  adminTokens.add(token);
+  adminFails.delete(ip);
+  const token = genToken('admtok');
+  adminTokens.set(token, Date.now() + ADMIN_TOKEN_TTL);
   res.json({ token });
+});
+
+/* change the admin password from the panel (saved hashed, never in GitHub) */
+app.put('/api/admin/password', requireAdmin, (req, res) => {
+  const { current, next } = req.body || {};
+  if (!checkAdminPassword(current)) return res.status(400).json({ error: 'كلمة المرور الحالية غير صحيحة' });
+  const pw = String(next || '');
+  if (pw.length < 10) return res.status(400).json({ error: 'كلمة المرور الجديدة يجب أن تكون 10 أحرف على الأقل' });
+  if (pw === String(current)) return res.status(400).json({ error: 'اختر كلمة مرور مختلفة عن الحالية' });
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(pw, salt, 64).toString('hex');
+  fs.mkdirSync(path.dirname(ADMIN_FILE), { recursive: true });
+  fs.writeFileSync(ADMIN_FILE + '.tmp', JSON.stringify({ hash, salt, updatedAt: Date.now() }), { mode: 0o600 });
+  fs.renameSync(ADMIN_FILE + '.tmp', ADMIN_FILE);
+  // log out every other session (e.g. someone who knew the old password)
+  adminTokens.clear();
+  const token = genToken('admtok');
+  adminTokens.set(token, Date.now() + ADMIN_TOKEN_TTL);
+  res.json({ ok: true, token });
+});
+
+app.get('/api/admin/security', requireAdmin, (req, res) => {
+  res.json({ passwordSetInPanel: Boolean(readAdminHash()) });
 });
 
 /* ---------------------------------------------------------
@@ -123,8 +241,10 @@ function requireUser(req, res, next) {
    otherwise shown on screen (local demo mode) */
 const OTP_RESEND_MS = 60 * 1000;
 const OTP_MAX_TRIES = 5;
+// Showing codes on screen lets ANYONE log into ANY account — only for local testing.
+const DEMO_CODES = String(process.env.DEMO_CODES || '').toLowerCase() === 'on';
 
-app.post('/api/auth/phone/send-code', async (req, res) => {
+app.post('/api/auth/phone/send-code', limitCodes, async (req, res) => {
   const phone = String((req.body || {}).phone || '').replace(/\s/g, '');
   if (!/^0?7\d{9}$/.test(phone)) {
     return res.status(400).json({ error: 'رقم هاتف غير صحيح' });
@@ -148,12 +268,15 @@ app.post('/api/auth/phone/send-code', async (req, res) => {
     return res.json({ ok: true, channel: 'whatsapp' });
   }
 
-  // demo mode (no WhatsApp settings): the code is returned so it can be shown on screen
+  if (!DEMO_CODES) {
+    return res.status(503).json({ error: 'الدخول برقم الهاتف غير متاح حالياً — سجّل الدخول بكلمة المرور أو بالبريد الإلكتروني' });
+  }
+  // demo mode (DEMO_CODES=on, local testing only): the code is shown on screen
   otpStore.set(phone, entry);
   res.json({ ok: true, channel: 'demo', devCode: code });
 });
 
-app.post('/api/auth/phone/verify', (req, res) => {
+app.post('/api/auth/phone/verify', limitAuth, (req, res) => {
   const phone = String((req.body || {}).phone || '').replace(/\s/g, '');
   const code = String((req.body || {}).code || '').trim();
   const entry = otpStore.get(phone);
@@ -169,8 +292,11 @@ app.post('/api/auth/phone/verify', (req, res) => {
 
   const users = readTable('users');
   const key = 'phone:' + phone.replace(/\D/g, '');
-  let user = findUserByKey(users, key);
-  const token = genId('usrtok');
+  let user = findUserByKey(users, key) || findByContact(users, key.startsWith('email:') ? 'email' : 'phone', key.slice(key.indexOf(':') + 1));
+  if (user && user.passHash) {
+    return res.status(403).json({ error: 'هذا الحساب محمي بكلمة مرور — سجّل الدخول باسم المستخدم وكلمة المرور' });
+  }
+  const token = genToken('usrtok');
   if (!user) {
     user = { id: genId('user'), key, method: 'phone', phone, name: 'زبون عطور الريحان', token };
     users.push(user);
@@ -184,7 +310,7 @@ app.post('/api/auth/phone/verify', (req, res) => {
 /* ---- sign up / log in with an email address + a code sent by email ---- */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-app.post('/api/auth/email/send-code', async (req, res) => {
+app.post('/api/auth/email/send-code', limitCodes, async (req, res) => {
   const email = String((req.body || {}).email || '').trim().toLowerCase();
   if (!EMAIL_RE.test(email) || email.length > 200) {
     return res.status(400).json({ error: 'بريد إلكتروني غير صحيح' });
@@ -209,12 +335,15 @@ app.post('/api/auth/email/send-code', async (req, res) => {
     return res.json({ ok: true, channel: 'email' });
   }
 
-  // demo mode (SMTP not configured): show the code on screen
+  if (!DEMO_CODES) {
+    return res.status(503).json({ error: 'الدخول بالكود غير متاح حالياً — سجّل الدخول بكلمة المرور' });
+  }
+  // demo mode (DEMO_CODES=on, local testing only): show the code on screen
   otpStore.set(key, entry);
   res.json({ ok: true, channel: 'demo', devCode: code });
 });
 
-app.post('/api/auth/email/verify', (req, res) => {
+app.post('/api/auth/email/verify', limitAuth, (req, res) => {
   const email = String((req.body || {}).email || '').trim().toLowerCase();
   const code = String((req.body || {}).code || '').trim();
   const otpKey = 'email:' + email;
@@ -231,8 +360,11 @@ app.post('/api/auth/email/verify', (req, res) => {
 
   const users = readTable('users');
   const key = 'email:' + email;
-  let user = findUserByKey(users, key);
-  const token = genId('usrtok');
+  let user = findUserByKey(users, key) || findByContact(users, key.startsWith('email:') ? 'email' : 'phone', key.slice(key.indexOf(':') + 1));
+  if (user && user.passHash) {
+    return res.status(403).json({ error: 'هذا الحساب محمي بكلمة مرور — سجّل الدخول باسم المستخدم وكلمة المرور' });
+  }
+  const token = genToken('usrtok');
   if (!user) {
     user = { id: genId('user'), key, method: 'email', email, name: 'زبون عطور الريحان', token };
     users.push(user);
@@ -290,13 +422,13 @@ async function deliverCode(method, contact, code) {
   return 'whatsapp';
 }
 
-app.get('/api/auth/username-available', (req, res) => {
+app.get('/api/auth/username-available', limitLookup, (req, res) => {
   const username = String(req.query.u || '').trim();
   if (!USERNAME_RE.test(username)) return res.json({ available: false, reason: 'invalid' });
   res.json({ available: !findByUsername(readTable('users'), username) });
 });
 
-app.post('/api/auth/register/start', async (req, res) => {
+app.post('/api/auth/register/start', limitCodes, async (req, res) => {
   const body = req.body || {};
   const username = String(body.username || '').trim();
   const password = String(body.password || '');
@@ -342,6 +474,11 @@ app.post('/api/auth/register/start', async (req, res) => {
     console.warn('  ⚠️ sign-up code failed:', e.message);
     return res.status(502).json({ error: 'تعذر إرسال كود التحقق — تأكد من البيانات وحاول مجدداً' });
   }
+  if (channel === 'demo' && !DEMO_CODES) {
+    return res.status(503).json({ error: method === 'email'
+      ? 'التسجيل بالبريد غير متاح حالياً — تواصل معنا على واتساب'
+      : 'التسجيل برقم الهاتف غير متاح حالياً — سجّل بالبريد الإلكتروني' });
+  }
   pendingSignups.set(ckey, {
     username, method, contact, ...hashPassword(password),
     code, expiresAt: Date.now() + 10 * 60 * 1000, sentAt: Date.now(), tries: 0
@@ -349,7 +486,7 @@ app.post('/api/auth/register/start', async (req, res) => {
   res.json(channel === 'demo' ? { ok: true, channel, devCode: code } : { ok: true, channel });
 });
 
-app.post('/api/auth/register/verify', (req, res) => {
+app.post('/api/auth/register/verify', limitAuth, (req, res) => {
   const body = req.body || {};
   const method = body.method === 'email' ? 'email' : 'phone';
   const ckey = contactKeyOf(method, body.contact || '');
@@ -369,7 +506,7 @@ app.post('/api/auth/register/verify', (req, res) => {
     pendingSignups.delete(ckey);
     return res.status(409).json({ error: 'اسم المستخدم محجوز — اختر اسماً آخر' });
   }
-  const token = genId('usrtok');
+  const token = genToken('usrtok');
   let user = findByContact(users, method, pending.contact);
   if (user && user.passHash) {
     pendingSignups.delete(ckey);
@@ -394,7 +531,7 @@ app.post('/api/auth/register/verify', (req, res) => {
 });
 
 const loginFails = new Map(); // login -> { n, until }
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', limitAuth, (req, res) => {
   const login = String((req.body || {}).login || '').trim();
   const password = String((req.body || {}).password || '');
   if (!login || !password) return res.status(400).json({ error: 'أدخل اسم المستخدم وكلمة المرور' });
@@ -413,7 +550,7 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
   }
   loginFails.delete(lk);
-  user.token = genId('usrtok');
+  user.token = genToken('usrtok');
   writeTable('users', users);
   res.json({ token: user.token, user: publicUser(user) });
 });
@@ -473,24 +610,7 @@ app.get('/api/admin/preorders', requireAdmin, (req, res) => {
   res.json(out.sort((a, b) => b.createdAt - a.createdAt));
 });
 
-app.post('/api/auth/social', (req, res) => {
-  const { provider, name, email } = req.body || {};
-  if (!name || !email || !/^\S+@\S+\.\S+$/.test(email)) {
-    return res.status(400).json({ error: 'بيانات غير صحيحة' });
-  }
-  const users = readTable('users');
-  const key = `${provider}:${String(email).toLowerCase()}`;
-  let user = findUserByKey(users, key);
-  const token = genId('usrtok');
-  if (!user) {
-    user = { id: genId('user'), key, method: provider, email, name, token };
-    users.push(user);
-  } else {
-    user.token = token;
-  }
-  writeTable('users', users);
-  res.json({ token, user: publicUser(user) });
-});
+/* (the simulated Google/Apple sign-in was removed: it accepted any email without checking it) */
 
 app.get('/api/me', requireUser, (req, res) => {
   res.json({ user: publicUser(req.user) });
@@ -547,7 +667,7 @@ app.delete('/api/admin/brands/:key', requireAdmin, (req, res) => {
 
   // remove the brand's advertising photo, if any
   if (removedBrand.bannerUrl) {
-    const bannerPath = path.join(__dirname, removedBrand.bannerUrl.replace(/^\/uploads\//, 'uploads/'));
+    const bannerPath = uploadFile(removedBrand.bannerUrl);
     fs.unlink(bannerPath, () => {});
   }
 
@@ -556,7 +676,7 @@ app.delete('/api/admin/brands/:key', requireAdmin, (req, res) => {
   const remaining = products.filter(p => p.brand !== req.params.key);
   const removedCount = products.length - remaining.length;
   products.filter(p => p.brand === req.params.key && p.photoUrl).forEach(p => {
-    fs.unlink(path.join(__dirname, p.photoUrl.replace(/^\/uploads\//, 'uploads/')), () => {});
+    fs.unlink(uploadFile(p.photoUrl), () => {});
   });
   writeTable('products', remaining);
 
@@ -668,29 +788,71 @@ app.delete('/api/admin/products/:id', requireAdmin, (req, res) => {
 });
 
 /* photo upload */
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: path.join(__dirname, 'uploads'),
-    filename: (req, file, cb) => cb(null, `${req.params.id}_${Date.now()}${path.extname(file.originalname)}`)
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) return cb(null, true);
-    cb(new Error('نوع الملف غير مدعوم — استخدم صورة JPG أو PNG أو WEBP.'));
-  }
-});
+/* ---------------------------------------------------------
+   image uploads (admin only) — hardened:
+   - the file name is random; the customer-supplied name/id is never used
+     (stops "../../" path tricks)
+   - the extension comes from the checked type, and the file's first bytes
+     must really be a JPG/PNG/WEBP/GIF (stops web pages disguised as images)
+--------------------------------------------------------- */
+const IMAGE_EXT = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
+
+function imageUpload(prefix, maxMB) {
+  return multer({
+    storage: multer.diskStorage({
+      destination: UPLOADS_DIR,
+      filename: (req, file, cb) => cb(null, `${prefix}_${crypto.randomBytes(12).toString('hex')}${IMAGE_EXT[file.mimetype]}`)
+    }),
+    limits: { fileSize: maxMB * 1024 * 1024, files: 1 },
+    fileFilter: (req, file, cb) => {
+      if (IMAGE_EXT[file.mimetype]) return cb(null, true);
+      cb(new Error('نوع الملف غير مدعوم — استخدم صورة JPG أو PNG أو WEBP أو GIF.'));
+    }
+  });
+}
+
+function isRealImage(filePath) {
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    const b = Buffer.alloc(12);
+    fs.readSync(fd, b, 0, 12, 0);
+    fs.closeSync(fd);
+    return (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) ||                                  // JPG
+      (b[0] === 0x89 && b.toString('ascii', 1, 4) === 'PNG') ||                                  // PNG
+      b.toString('ascii', 0, 4) === 'GIF8' ||                                                    // GIF
+      (b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP');           // WEBP
+  } catch (e) { return false; }
+}
+
+/* runs the upload and rejects anything that isn't a genuine image */
+function receiveImage(uploader, req, res, done) {
+  uploader.single('photo')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message || 'تعذر رفع الصورة' });
+    if (req.file && !isRealImage(req.file.path)) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ error: 'الملف ليس صورة حقيقية.' });
+    }
+    done();
+  });
+}
+
+/* maps a stored "/uploads/x.jpg" URL to its file, never outside uploads/ */
+function uploadFile(url) {
+  return path.join(UPLOADS_DIR, path.basename(String(url || '')));
+}
+
+const upload = imageUpload('prod', 5);
 
 app.post('/api/admin/products/:id/photo', requireAdmin, (req, res) => {
-  upload.single('photo')(req, res, (err) => {
-    if (err) return res.status(400).json({ error: err.message || 'تعذر رفع الصورة' });
+  receiveImage(upload, req, res, () => {
     const products = readTable('products');
     const product = products.find(p => p.id === req.params.id);
-    if (!product) return res.status(404).json({ error: 'العطر غير موجود' });
+    if (!product) { if (req.file) fs.unlink(req.file.path, () => {}); return res.status(404).json({ error: 'العطر غير موجود' }); }
     if (!req.file) return res.status(400).json({ error: 'لم يتم إرسال صورة' });
 
     // remove the previous photo file so uploads/ doesn't accumulate orphans
     if (product.photoUrl) {
-      const old = path.join(__dirname, product.photoUrl.replace(/^\/uploads\//, 'uploads/'));
+      const old = uploadFile(product.photoUrl);
       fs.unlink(old, () => {});
     }
     product.photoUrl = `/uploads/${req.file.filename}`;
@@ -705,7 +867,7 @@ app.delete('/api/admin/products/:id/photo', requireAdmin, (req, res) => {
   const product = products.find(p => p.id === req.params.id);
   if (!product) return res.status(404).json({ error: 'العطر غير موجود' });
   if (product.photoUrl) {
-    const old = path.join(__dirname, product.photoUrl.replace(/^\/uploads\//, 'uploads/'));
+    const old = uploadFile(product.photoUrl);
     fs.unlink(old, () => {});
     delete product.photoUrl;
     writeTable('products', products);
@@ -716,28 +878,17 @@ app.delete('/api/admin/products/:id/photo', requireAdmin, (req, res) => {
 /* brand advertising photo — shown as the background image for that
    brand's slide in the homepage hero/advertising section. Falls back
    to the generated gradient + icon when no photo is set. */
-const uploadBrandPhoto = multer({
-  storage: multer.diskStorage({
-    destination: path.join(__dirname, 'uploads'),
-    filename: (req, file, cb) => cb(null, `brand_${req.params.key}_${Date.now()}${path.extname(file.originalname)}`)
-  }),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) return cb(null, true);
-    cb(new Error('نوع الملف غير مدعوم — استخدم صورة JPG أو PNG أو WEBP.'));
-  }
-});
+const uploadBrandPhoto = imageUpload('brand', 5);
 
 app.post('/api/admin/brands/:key/photo', requireAdmin, (req, res) => {
-  uploadBrandPhoto.single('photo')(req, res, (err) => {
-    if (err) return res.status(400).json({ error: err.message || 'تعذر رفع الصورة' });
+  receiveImage(uploadBrandPhoto, req, res, () => {
     const brands = readTable('brands');
     const brand = brands.find(b => b.key === req.params.key);
-    if (!brand) return res.status(404).json({ error: 'الخط غير موجود' });
+    if (!brand) { if (req.file) fs.unlink(req.file.path, () => {}); return res.status(404).json({ error: 'الخط غير موجود' }); }
     if (!req.file) return res.status(400).json({ error: 'لم يتم إرسال صورة' });
 
     if (brand.bannerUrl) {
-      const old = path.join(__dirname, brand.bannerUrl.replace(/^\/uploads\//, 'uploads/'));
+      const old = uploadFile(brand.bannerUrl);
       fs.unlink(old, () => {});
     }
     brand.bannerUrl = `/uploads/${req.file.filename}`;
@@ -751,7 +902,7 @@ app.delete('/api/admin/brands/:key/photo', requireAdmin, (req, res) => {
   const brand = brands.find(b => b.key === req.params.key);
   if (!brand) return res.status(404).json({ error: 'الخط غير موجود' });
   if (brand.bannerUrl) {
-    const old = path.join(__dirname, brand.bannerUrl.replace(/^\/uploads\//, 'uploads/'));
+    const old = uploadFile(brand.bannerUrl);
     fs.unlink(old, () => {});
     delete brand.bannerUrl;
     writeTable('brands', brands);
@@ -790,7 +941,7 @@ function sortedAds() {
 
 function removeAdImage(ad) {
   if (ad && ad.imageUrl) {
-    fs.unlink(path.join(__dirname, ad.imageUrl.replace(/^\/uploads\//, 'uploads/')), () => {});
+    fs.unlink(uploadFile(ad.imageUrl), () => {});
     delete ad.imageUrl;
   }
 }
@@ -831,9 +982,9 @@ function brandAdFrom(b, order) {
   if (b.bannerUrl) {
     // copy the brand's photo so deleting the ad never deletes the brand's own file
     try {
-      const src = path.join(__dirname, b.bannerUrl.replace(/^\/uploads\//, 'uploads/'));
-      const name = `ad_${ad.id}_${Date.now()}${path.extname(src).toLowerCase()}`;
-      fs.copyFileSync(src, path.join(__dirname, 'uploads', name));
+      const src = uploadFile(b.bannerUrl);
+      const name = `ad_${crypto.randomBytes(12).toString('hex')}${path.extname(src).toLowerCase()}`;
+      fs.copyFileSync(src, path.join(UPLOADS_DIR, name));
       ad.imageUrl = `/uploads/${name}`;
       ad.effect = 'zoom';
     } catch (e) { /* photo missing on disk — keep the generated look */ }
@@ -922,25 +1073,10 @@ app.delete('/api/admin/ads/:id', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-const uploadAdPhoto = multer({
-  storage: multer.diskStorage({
-    destination: path.join(__dirname, 'uploads'),
-    filename: (req, file, cb) => {
-      const safeId = String(req.params.id).replace(/[^\w-]/g, '');
-      const ext = (path.extname(file.originalname) || '.jpg').toLowerCase().replace(/[^.\w]/g, '');
-      cb(null, `ad_${safeId}_${Date.now()}${ext}`);
-    }
-  }),
-  limits: { fileSize: 8 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) return cb(null, true);
-    cb(new Error('نوع الملف غير مدعوم — استخدم صورة JPG أو PNG أو WEBP أو GIF.'));
-  }
-});
+const uploadAdPhoto = imageUpload('ad', 8);
 
 app.post('/api/admin/ads/:id/photo', requireAdmin, (req, res) => {
-  uploadAdPhoto.single('photo')(req, res, (err) => {
-    if (err) return res.status(400).json({ error: err.message || 'تعذر رفع الصورة' });
+  receiveImage(uploadAdPhoto, req, res, () => {
     const ads = readTable('ads');
     const ad = ads.find(a => a.id === req.params.id);
     if (!ad) {
@@ -998,11 +1134,18 @@ function orderUserKey(req) {
 /* ---------------------------------------------------------
    orders / checkout — server recomputes totals
 --------------------------------------------------------- */
-app.post('/api/orders', async (req, res) => {
+const MAX_QTY_PER_ITEM = 20;
+const MAX_ITEMS_PER_ORDER = 30;
+app.post('/api/orders', limitOrders, async (req, res) => {
   const body = req.body || {};
   const items = Array.isArray(body.items) ? body.items : [];
   if (!items.length) return res.status(400).json({ error: 'السلة فارغة' });
-  if (!body.name || !body.phone) return res.status(400).json({ error: 'الاسم والهاتف مطلوبان' });
+  if (items.length > MAX_ITEMS_PER_ORDER) return res.status(400).json({ error: 'عدد العطور في الطلب كبير جداً — تواصل معنا على واتساب' });
+  const name = String(body.name || '').trim();
+  const phone = String(body.phone || '').replace(/[\s-]/g, '');
+  if (!name || !phone) return res.status(400).json({ error: 'الاسم والهاتف مطلوبان' });
+  if (name.length > 80) return res.status(400).json({ error: 'الاسم طويل جداً' });
+  if (!/^\+?\d{7,15}$/.test(phone)) return res.status(400).json({ error: 'رقم الهاتف غير صحيح' });
 
   const products = readTable('products');
   const lines = [];
@@ -1010,7 +1153,7 @@ app.post('/api/orders', async (req, res) => {
   for (const item of items) {
     const product = products.find(p => p.id === item.id);
     if (!product || product.available === false) continue;
-    const qty = Math.max(1, parseInt(item.qty, 10) || 1);
+    const qty = Math.min(MAX_QTY_PER_ITEM, Math.max(1, parseInt(item.qty, 10) || 1));
     subtotal += product.priceNum * qty;
     lines.push({ id: product.id, ar: product.ar, qty, priceNum: product.priceNum, lineTotal: product.priceNum * qty });
   }
@@ -1029,13 +1172,13 @@ app.post('/api/orders', async (req, res) => {
   const order = {
     id: genId('order'),
     createdAt: Date.now(),
-    name: body.name,
-    phone: body.phone,
+    name,
+    phone,
     deliveryMethod,
-    branch: body.branch || null,
-    address: body.address || null,
+    branch: ['البلديات', 'المثنى'].includes(body.branch) ? body.branch : null,
+    address: body.address ? String(body.address).trim().slice(0, 300) : null,
     paymentMethod,
-    notes: body.notes || '',
+    notes: String(body.notes || '').trim().slice(0, 500),
     items: lines,
     subtotal,
     deliveryFee,
@@ -1184,11 +1327,31 @@ app.get('/api/chat/status', async (req, res) => {
    If the agent can't even start, it answers HTTP 503 instead and the
    storefront tells the customer Light is reconnecting (there is no
    rule-based fallback — Light always answers through Ollama). */
-app.post('/api/chat', async (req, res) => {
+const CHAT_MAX_ACTIVE = 2;   // answers generated at the same time
+const CHAT_MAX_WAITING = 6;  // questions allowed to wait in line
+let chatActive = 0;
+const chatQueue = [];
+function chatSlot() {
+  if (chatActive < CHAT_MAX_ACTIVE) { chatActive++; return Promise.resolve(); }
+  if (chatQueue.length >= CHAT_MAX_WAITING) return null;
+  return new Promise(resolve => chatQueue.push(resolve));
+}
+function chatRelease() {
+  const nextInLine = chatQueue.shift();
+  if (nextInLine) nextInLine(); else chatActive--;
+}
+
+app.post('/api/chat', limitChat, async (req, res) => {
   const { message, history } = req.body || {};
   if (!message || !String(message).trim()) {
     return res.status(400).json({ error: 'الرسالة فارغة' });
   }
+  const slot = chatSlot();
+  if (!slot) return res.status(503).json({ error: 'لايت مشغول الآن — جرّب بعد لحظات' });
+  await slot;
+  let released = false;
+  const release = () => { if (!released) { released = true; chatRelease(); } };
+  res.on('close', release);
 
   let started = false;
   const start = () => {
@@ -1209,7 +1372,9 @@ app.post('/api/chat', async (req, res) => {
     start();
     res.write(JSON.stringify({ done: true, products: productsMentioned(full) }) + '\n');
     res.end();
+    release();
   } catch (e) {
+    release();
     console.warn('  ⚠️  Light agent error:', e.message);
     if (!started) {
       res.status(503).json({ error: 'agent unavailable', detail: e.message });

@@ -176,32 +176,37 @@ const PAYMENT_LABELS = {
 };
 const BRANCH_LABELS = { 'البلديات': 'فرع حي البلديات', 'المثنى': 'فرع حي المثنى' };
 
+/* everything a customer typed is escaped, so it can't add links or HTML to the owner's email */
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function buildOrderEmailHTML(order) {
   const rows = order.items.map(it => `
     <tr>
-      <td style="padding:10px 12px; border-bottom:1px solid #E5E0D4;">${it.ar}</td>
-      <td style="padding:10px 12px; border-bottom:1px solid #E5E0D4; text-align:center;">${it.qty}</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #E5E0D4;">${esc(it.ar)}</td>
+      <td style="padding:10px 12px; border-bottom:1px solid #E5E0D4; text-align:center;">${esc(it.qty)}</td>
       <td style="padding:10px 12px; border-bottom:1px solid #E5E0D4; text-align:left; white-space:nowrap;">${fmtIQD(it.lineTotal)}</td>
     </tr>`).join('');
 
   const deliveryLine = order.deliveryMethod === 'pickup'
-    ? `<p style="margin:6px 0;"><b>الاستلام:</b> ${DELIVERY_LABELS.pickup} — ${BRANCH_LABELS[order.branch] || order.branch || ''}</p>`
-    : `<p style="margin:6px 0;"><b>الاستلام:</b> ${DELIVERY_LABELS.delivery}${order.address ? ` — ${order.address}` : ''}</p>`;
+    ? `<p style="margin:6px 0;"><b>الاستلام:</b> ${DELIVERY_LABELS.pickup} — ${esc(BRANCH_LABELS[order.branch] || order.branch || '')}</p>`
+    : `<p style="margin:6px 0;"><b>الاستلام:</b> ${DELIVERY_LABELS.delivery}${order.address ? ` — ${esc(order.address)}` : ''}</p>`;
 
   return `
   <div dir="rtl" style="font-family:Tahoma,Arial,sans-serif; background:#0C0B09; padding:24px; color:#EFE8D8;">
     <div style="max-width:620px; margin:0 auto; background:#161310; border:1px solid rgba(201,162,39,0.35); border-radius:10px; overflow:hidden;">
       <div style="background:#1D1712; padding:20px 24px; border-bottom:1px solid rgba(201,162,39,0.35);">
         <h1 style="margin:0; font-size:20px; color:#E9C766;">طلب جديد — عطور الريحان</h1>
-        <p style="margin:6px 0 0; font-size:12px; color:#B8AF9C;">رقم الطلب: ${order.id}</p>
+        <p style="margin:6px 0 0; font-size:12px; color:#B8AF9C;">رقم الطلب: ${esc(order.id)}</p>
       </div>
 
       <div style="padding:22px 24px; font-size:14px; line-height:1.9;">
-        <p style="margin:6px 0;"><b>الاسم:</b> ${order.name}</p>
-        <p style="margin:6px 0;"><b>الهاتف:</b> ${order.phone}</p>
+        <p style="margin:6px 0;"><b>الاسم:</b> ${esc(order.name)}</p>
+        <p style="margin:6px 0;"><b>الهاتف:</b> ${esc(order.phone)}</p>
         ${deliveryLine}
-        <p style="margin:6px 0;"><b>طريقة الدفع:</b> ${PAYMENT_LABELS[order.paymentMethod] || order.paymentMethod}</p>
-        ${order.notes ? `<p style="margin:6px 0;"><b>ملاحظات الزبون:</b> ${order.notes}</p>` : ''}
+        <p style="margin:6px 0;"><b>طريقة الدفع:</b> ${esc(PAYMENT_LABELS[order.paymentMethod] || order.paymentMethod)}</p>
+        ${order.notes ? `<p style="margin:6px 0;"><b>ملاحظات الزبون:</b> ${esc(order.notes)}</p>` : ''}
 
         <table style="width:100%; border-collapse:collapse; margin-top:18px; font-size:13.5px; background:#0C0B09; border:1px solid #2A241C;">
           <thead>
@@ -261,7 +266,7 @@ async function sendOrderEmail(order) {
     const info = await t.sendMail({
       from: cfg.from,
       to: cfg.ownerEmail,
-      subject: `طلب جديد #${order.id} — ${order.name} — ${fmtIQD(order.total)}`,
+      subject: `طلب جديد #${order.id} — ${String(order.name).replace(/[\r\n]+/g, ' ').slice(0, 60)} — ${fmtIQD(order.total)}`,
       text: buildOrderEmailText(order),
       html: buildOrderEmailHTML(order)
     });
