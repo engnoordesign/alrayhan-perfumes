@@ -20,6 +20,8 @@ const OLLAMA_URL = (process.env.OLLAMA_URL || 'http://localhost:11434').replace(
 const CONFIGURED_MODEL = process.env.OLLAMA_MODEL || 'llama3.1';
 const NUM_CTX = parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192;
 const REQUEST_TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS, 10) || 180000;
+// keep the model loaded in memory so replies never wait for a cold start (-1 = forever)
+const KEEP_ALIVE = process.env.OLLAMA_KEEP_ALIVE || '-1';
 const MAX_DETAILED_PRODUCTS = 12;
 
 function fmtIQD(n) {
@@ -294,30 +296,42 @@ function productsMentioned(replyText) {
 
 /* Streams a reply. onToken(text) is called as pieces arrive.
    Resolves with the full reply text. Throws on any failure. */
-async function streamAgent(message, history, onToken) {
+async function openChatStream(message, history) {
   const model = await ensureModel();
-  let res;
-  try {
-    res = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        messages: buildMessages(message, history),
-        stream: true,
-        keep_alive: '30m',
-        options: { temperature: 0.4, num_ctx: NUM_CTX }
-      }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-    });
-  } catch (e) {
-    resolvedModel = null; // force a fresh check next time
-    throw e;
-  }
+  const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages: buildMessages(message, history),
+      stream: true,
+      keep_alive: KEEP_ALIVE,
+      options: { temperature: 0.4, num_ctx: NUM_CTX }
+    }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+  });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    resolvedModel = null;
     throw new Error(`Ollama returned ${res.status}: ${text.slice(0, 200)}`);
+  }
+  return res;
+}
+
+async function streamAgent(message, history, onToken) {
+  let res;
+  try {
+    res = await openChatStream(message, history);
+  } catch (e) {
+    // Ollama may be restarting or the model was removed/renamed:
+    // re-discover the model and try once more before giving up
+    resolvedModel = null;
+    await new Promise(r => setTimeout(r, 1000));
+    try {
+      res = await openChatStream(message, history);
+    } catch (e2) {
+      resolvedModel = null;
+      throw e2;
+    }
   }
 
   const reader = res.body.getReader();
@@ -344,12 +358,76 @@ async function streamAgent(message, history, onToken) {
   return full.trim();
 }
 
+/* Makes sure Ollama is running and has a model, so Light works after any
+   restart without anyone touching it:
+   - Ollama not answering on this machine → start "ollama serve" ourselves
+   - Ollama running but no model installed → download the configured one */
+let ollamaSpawned = false;
+let pullStarted = false;
+
+function isLocalOllama() {
+  try { return ['localhost', '127.0.0.1', '::1'].includes(new URL(OLLAMA_URL).hostname); }
+  catch (e) { return false; }
+}
+
+async function ensureOllama() {
+  let installed;
+  try {
+    installed = await listModels();
+  } catch (e) {
+    if (isLocalOllama() && !ollamaSpawned) {
+      ollamaSpawned = true;
+      try {
+        const { spawn } = require('child_process');
+        const child = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore', windowsHide: true });
+        child.on('error', err => console.warn('  ⚠️  تعذر تشغيل Ollama تلقائياً:', err.code === 'ENOENT' ? 'Ollama غير مثبّت على هذا الجهاز' : err.message));
+        child.on('spawn', () => console.log('  🧠 Ollama لم يكن يعمل — تم تشغيله تلقائياً.'));
+        child.unref();
+        await new Promise(r => setTimeout(r, 3000)); // give it a moment to start listening
+        return ensureOllama();
+      } catch (err) { /* reported by the warm-up loop */ }
+    }
+    return;
+  }
+  if (!installed.length && !pullStarted) {
+    pullStarted = true;
+    console.log(`  🧠 لا يوجد نموذج في Ollama — جارٍ تنزيل ${CONFIGURED_MODEL} (مرة واحدة فقط، قد يأخذ دقائق)…`);
+    fetch(`${OLLAMA_URL}/api/pull`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: CONFIGURED_MODEL, stream: false })
+    }).then(r => r.json())
+      .then(j => { pullStarted = false; console.log(`  🧠 تنزيل ${CONFIGURED_MODEL}: ${j.status || j.error}`); })
+      .catch(e => { pullStarted = false; console.warn('  ⚠️  فشل تنزيل النموذج:', e.message); });
+  }
+}
+
+/* Loads the model into memory ahead of the first customer question, so the
+   first reply isn't slowed by a cold start. Safe to call repeatedly. */
+async function warmUpAgent() {
+  await ensureOllama();
+  try {
+    const model = await ensureModel();
+    const res = await fetch(`${OLLAMA_URL}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, prompt: '', keep_alive: KEEP_ALIVE }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+    await res.text();
+    return { ok: res.ok, model };
+  } catch (e) {
+    resolvedModel = null;
+    return { ok: false, error: e.message };
+  }
+}
+
 /* Non-streaming convenience wrapper (used by the diagnostic script). */
 async function askAgent(message, history) {
   return streamAgent(message, history, () => {});
 }
 
 module.exports = {
-  checkAgentAvailable, streamAgent, askAgent, productsMentioned,
+  checkAgentAvailable, streamAgent, askAgent, warmUpAgent, productsMentioned,
   retrieveProducts, buildSystemPrompt, OLLAMA_URL, CONFIGURED_MODEL, NUM_CTX
 };

@@ -10,7 +10,7 @@ const {
   initMailer, verifyMailer, sendOrderEmail, sendTestEmail, isMailConfigured, sendOtpEmail,
   saveMailSettings, publicMailSettings
 } = require('./mailer');
-const { checkAgentAvailable, streamAgent, productsMentioned } = require('./agent');
+const { checkAgentAvailable, streamAgent, warmUpAgent, productsMentioned } = require('./agent');
 const whatsapp = require('./whatsapp');
 
 const app = express();
@@ -1181,8 +1181,9 @@ app.get('/api/chat/status', async (req, res) => {
      {"t":"token text"}          — repeated, as the model writes
      {"done":true,"products":[]} — once, at the end (ids to show as cards)
      {"error":"..."}             — if the model fails part-way
-   If the agent can't even start, it answers HTTP 503 instead, and the
-   storefront falls back to the fast rule-based Light for that message. */
+   If the agent can't even start, it answers HTTP 503 instead and the
+   storefront tells the customer Light is reconnecting (there is no
+   rule-based fallback — Light always answers through Ollama). */
 app.post('/api/chat', async (req, res) => {
   const { message, history } = req.body || {};
   if (!message || !String(message).trim()) {
@@ -1242,5 +1243,16 @@ app.listen(PORT, async () => {
   await verifyMailer();
   // send anything that was left unsent before the server went offline
   retryPendingOrderEmails();
+
+  // Light: load the AI model now and keep checking it, so it's ready for customers
+  const keepLightReady = async () => {
+    const w = await warmUpAgent();
+    if (w.ok) { if (!lightWasReady) console.log(`  🧠 لايت جاهز — النموذج ${w.model} محمّل في الذاكرة.\n`); }
+    else if (lightWasReady !== false) console.warn(`  ⚠️  لايت لا يستطيع الوصول إلى Ollama (${w.error}) — سيُعاد المحاولة كل دقيقة.\n`);
+    lightWasReady = w.ok;
+  };
+  let lightWasReady = null;
+  keepLightReady();
+  setInterval(keepLightReady, 60 * 1000);
   setInterval(retryPendingOrderEmails, EMAIL_RETRY_EVERY_MS);
 });

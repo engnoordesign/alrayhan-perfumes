@@ -80,6 +80,6 @@ const info = (m) => console.log('     ' + m);
 function finish(allGood) {
   console.log(allGood
     ? '\n  🎉 Everything works. Start the store with  npm start  and Light will use the AI.\n'
-    : '\n  Light will still work in its fast built-in mode until this is fixed.\n');
+    : '\n  Light cannot answer customers until this is fixed (it has no built-in mode).\n');
   process.exit(allGood ? 0 : 1);
 }
