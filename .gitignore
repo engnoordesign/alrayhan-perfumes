@@ -16,6 +16,10 @@ server/data/orders.json
 server/data/mail-settings.json
 server/data/mail-settings.json.tmp
 
+# ---- admin password (hashed, set from the admin panel, tab "الأمان") ----
+server/data/admin.json
+server/data/admin.json.tmp
+
 # ---- uploaded photos (back these up separately, see HOSTING-GUIDE.md) ----
 server/uploads/*
 !server/uploads/.gitkeep

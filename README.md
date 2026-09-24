@@ -38,15 +38,12 @@ database, no paid services required to get started.
 
 ## What's still a local/demo stand-in (and what to do about it before going public)
 
-- **Phone verification codes are shown on-screen**, not texted, because there's no SMS
-  provider configured. Search `server/server.js` for `send-code` and wire in a real provider
-  (Twilio, etc.) before this ever goes on the public internet.
+- **Phone sign-up needs WhatsApp configured.** Codes are never shown on screen (unless you
+  set `DEMO_CODES=on` for local testing), so until the WhatsApp settings are filled in,
+  customers sign up with their email instead.
 - **Order emails need a Gmail app password** to actually send. Until you set it in the admin
   panel (tab «البريد»), orders are still saved normally and their emails wait in a queue that
   sends them as soon as mail works — checkout never breaks.
-- **Google/Apple sign-in is simulated** with a simple name+email form — there's no real OAuth
-  handshake. Wiring up real Google/Apple sign-in requires registering the app with each
-  provider and doing the token verification server-side.
 - **The JSON-file database** is perfect for one shop running locally, but it is not built for
   many simultaneous writers. If this ever needs to run on a real public server with real
   traffic, migrate `server/db.js` to a proper database (Postgres, MySQL, etc.) — the rest of
@@ -88,11 +85,31 @@ On Windows you can also just double-click `start.bat` in the project root (after
 
 ## Admin password
 
-There is no built-in default password. Copy `server/.env.example` to `server/.env` and set
-`ADMIN_PASSWORD` to a strong password of your choice, then restart the server.
+Set it in the admin panel → tab **«الأمان»**. It's stored hashed in
+`server/data/admin.json` (git-ignored), survives restarts, and changing it logs out every
+other admin session. `ADMIN_PASSWORD` in `server/.env` is only used the very first time,
+before a password has been set in the panel; if it's empty, a temporary random password is
+printed in the console at each start. Never upload `server/.env` to GitHub.
 
-If `ADMIN_PASSWORD` is not set, the server generates a temporary random password on every
-start and prints it in the console, so you can still log in while testing locally.
+## Security
+
+A full security test was run against the whole system (live attack attempts plus a code
+review) and every finding was fixed and re-tested:
+
+- **Admin login:** 5 wrong passwords from one device lock it out for 15 minutes; each wrong
+  try is slowed down; sessions expire after 12 hours; 256-bit random session tokens.
+- **Customer accounts:** no simulated Google/Apple sign-in; codes are only delivered by
+  WhatsApp/email (never shown on screen); an account with a password can't be entered with a
+  code alone; attempt limits on sign-up, login and code requests.
+- **Orders:** at most 5 orders per device per 10 minutes, 20 per item, 30 items per order;
+  name/phone/address/notes are validated and length-limited; everything a customer types is
+  escaped in the owner's email.
+- **Uploads:** random file names (no path tricks), only real JPG/PNG/WEBP/GIF files (checked
+  by content, not by name), and `/uploads` serves images only.
+- **Light:** 12 messages per minute per device, at most 2 answers generated at once.
+- **Browser protections:** Content-Security-Policy, no framing (clickjacking), `nosniff`,
+  strict referrer policy, HSTS over HTTPS, no `X-Powered-By`, no cross-site API access (CORS).
+- **Dependencies:** nodemailer 10 and multer 2 — `npm audit` reports 0 vulnerabilities.
 
 Enter it via the small "لوحة التحكم" link at the bottom of the site, or the menu icon next to
 the logo.
@@ -110,14 +127,14 @@ the logo.
 
 The sign-in window has two tabs: **رقم الهاتف** (code sent by WhatsApp) and
 **البريد الإلكتروني** (code sent by email using the same SMTP settings as order emails).
-Both use 6-digit codes that expire after 5 minutes. If WhatsApp or SMTP isn't set up yet,
-that option runs in demo mode and shows the code on screen.
+Both use 6-digit codes that expire after 5 minutes. If WhatsApp or email isn't set up yet,
+that option is turned off (the codes are never shown on screen unless `DEMO_CODES=on`).
 
 ## WhatsApp verification codes (sign-up OTP)
 
 When a customer signs up with their phone number, the 6-digit code is sent to them on
 **WhatsApp** through Meta's official WhatsApp Business Cloud API. Until you fill in the
-settings below, the site stays in demo mode and shows the code on screen.
+settings below, phone sign-up stays off and customers sign up with their email instead.
 
 Built in: codes expire after 5 minutes, a new code can be requested once a minute, and
 5 wrong attempts cancel the code.
