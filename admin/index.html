@@ -305,6 +305,11 @@ html[data-theme="light"]{
   color-scheme: light;
 }
 html[data-theme="dark"]{ color-scheme: dark; }
+/* ---------- soft fade when switching dark / light ---------- */
+::view-transition-old(root), ::view-transition-new(root){ animation-duration:.6s; animation-timing-function:ease-in-out; }
+html.theme-fade, html.theme-fade *, html.theme-fade *::before, html.theme-fade *::after{
+  transition:background-color .6s ease, color .6s ease, border-color .6s ease, fill .6s ease, stroke .6s ease, box-shadow .6s ease, opacity .6s ease !important;
+}
 body{ transition:background .25s, color .25s; }
 html[data-theme="light"] .topbar{ background:rgba(255,253,247,0.94); }
 html[data-theme="light"] .modal{ background:rgba(60,50,35,0.45); }
@@ -1461,9 +1466,20 @@ $('#brandForm').addEventListener('submit', async (e)=>{
 
 /* ---------------- theme (light / dark) ---------------- */
 const ADMIN_THEME_KEY = 'alrayhan_admin_theme';
+/* switches the theme with a soft cross-fade instead of a sudden flash */
+function fadeTheme(change){
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce){ change(); return; }
+  if(document.startViewTransition){ document.startViewTransition(change); return; }
+  const root = document.documentElement;
+  root.classList.add('theme-fade');
+  change();
+  clearTimeout(fadeTheme.t);
+  fadeTheme.t = setTimeout(()=> root.classList.remove('theme-fade'), 650);
+}
 $('#themeBtn').addEventListener('click', ()=>{
   const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', next);
+  fadeTheme(()=> document.documentElement.setAttribute('data-theme', next));
   try{ localStorage.setItem(ADMIN_THEME_KEY, next); }catch(e){}
 });
 
