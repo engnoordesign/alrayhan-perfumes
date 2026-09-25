@@ -75,6 +75,12 @@
   html[data-theme="light"] .light-avatar,
   html[data-theme="light"] .profile-avatar-lg{ color:#FFFDF7; }
 
+  /* ---------- soft fade when switching dark / light ---------- */
+  ::view-transition-old(root), ::view-transition-new(root){ animation-duration:.6s; animation-timing-function:ease-in-out; }
+  html.theme-fade, html.theme-fade *, html.theme-fade *::before, html.theme-fade *::after{
+    transition:background-color .6s ease, color .6s ease, border-color .6s ease, fill .6s ease, stroke .6s ease, box-shadow .6s ease, opacity .6s ease !important;
+  }
+
   /* theme toggle button */
   .theme-btn svg{ width:19px; height:19px; }
   .theme-btn .icon-sun{ display:none; }
@@ -1689,8 +1695,19 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     return document.documentElement.getAttribute('data-theme') || 'dark';
   }
   document.getElementById('themeToggleBtn').addEventListener('click', ()=>{
-    applyTheme(currentTheme() === 'light' ? 'dark' : 'light');
+    fadeTheme(()=> applyTheme(currentTheme() === 'light' ? 'dark' : 'light'));
   });
+  /* switches the theme with a soft cross-fade instead of a sudden flash */
+  function fadeTheme(change){
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(reduce){ change(); return; }
+    if(document.startViewTransition){ document.startViewTransition(change); return; }
+    const root = document.documentElement;
+    root.classList.add('theme-fade');
+    change();
+    clearTimeout(fadeTheme.t);
+    fadeTheme.t = setTimeout(()=> root.classList.remove('theme-fade'), 650);
+  }
 
   /* ---------------- helpers: color shading ---------------- */
   function shade(hex, percent){
