@@ -218,6 +218,9 @@
   .field-row{ display:flex; gap:12px; flex-wrap:wrap; }
 
   /* mail settings */
+  .ads-master{ font-size:12.5px; font-weight:600; color:var(--bone); padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+  .ads-off-note{ background:rgba(192,82,75,0.12); border:1px solid rgba(192,82,75,0.4); color:#E4948E; border-radius:8px; padding:10px 14px; font-size:13px; margin:-6px 0 18px; }
+  #adList.ads-dimmed{ opacity:.5; }
   .gear-wrap{ position:relative; }
   .gear-btn.active{ border-color:var(--gold); color:var(--gold-bright); }
   .gear-menu{ position:absolute; top:calc(100% + 8px); left:0; min-width:170px; z-index:60; display:none;
@@ -468,11 +471,15 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
           <h2>إدارة الإعلانات</h2>
           <div class="sub">تظهر الإعلانات أولاً في شريط العرض أعلى الصفحة الرئيسية، بالترتيب الظاهر هنا.</div>
         </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <label class="toggle ads-master" title="إظهار أو إخفاء كل الإعلانات عن الزبائن">
+            <input type="checkbox" id="adsMasterToggle" checked><span class="sw"></span><span id="adsMasterLabel">الإعلانات ظاهرة في المتجر</span>
+          </label>
           <button class="btn ghost" id="importBrandAdsBtn" type="button" title="يضيف إعلاناً لكل خط ليس له إعلان">استيراد الخطوط كإعلانات</button>
           <button class="btn solid" id="newAdBtn" type="button">+ إعلان جديد</button>
         </div>
       </div>
+      <p class="ads-off-note" id="adsOffNote" hidden>🚫 كل الإعلانات مخفية الآن عن الزبائن — يظهر في أعلى المتجر عرض الخطوط فقط. الإعلانات محفوظة هنا ويمكنك إظهارها في أي وقت.</p>
       <div id="adList"></div>
     </div>
 
@@ -1516,7 +1523,24 @@ async function loadAds(){
     ads = await api('/api/admin/ads');
     renderAds();
   }catch(e){ toast('تعذر تحميل الإعلانات'); }
+  try{ showAdsMaster((await api('/api/admin/ads-settings')).enabled); }catch(e){}
 }
+
+/* master switch: show / hide every ad on the storefront */
+function showAdsMaster(on){
+  $('#adsMasterToggle').checked = on;
+  $('#adsMasterLabel').textContent = on ? 'الإعلانات ظاهرة في المتجر' : 'الإعلانات مخفية عن الزبائن';
+  $('#adsOffNote').hidden = on;
+  $('#adList').classList.toggle('ads-dimmed', !on);
+}
+$('#adsMasterToggle').addEventListener('change', async (e)=>{
+  const on = e.target.checked;
+  try{
+    await api('/api/admin/ads-settings', { method:'PUT', body: JSON.stringify({ enabled: on }) });
+    showAdsMaster(on);
+    toast(on ? 'تم إظهار الإعلانات في المتجر' : 'تم إخفاء كل الإعلانات عن الزبائن');
+  }catch(err){ e.target.checked = !on; toast(err.message); }
+});
 
 function renderAds(){
   const wrap = $('#adList');
