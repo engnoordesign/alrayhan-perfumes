@@ -701,8 +701,19 @@ app.delete('/api/admin/brands/:key', requireAdmin, (req, res) => {
    products — full CRUD, admin only for writes
 --------------------------------------------------------- */
 app.get('/api/products', (req, res) => {
+  // the purchase cost is private (accounting only) — never sent to customers
+  res.json(readTable('products').map(({ cost, ...p }) => p));
+});
+
+app.get('/api/admin/products', requireAdmin, (req, res) => {
   res.json(readTable('products'));
 });
+
+function cleanCost(v) {
+  if (v === null || v === '') return null;
+  const n = parseInt(String(v).replace(/[^\d]/g, ''), 10);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
 
 /* public shop settings the storefront needs (delivery fee, etc.) */
 app.get('/api/config', (req, res) => {
@@ -742,6 +753,8 @@ app.post('/api/admin/products', requireAdmin, (req, res) => {
     product.qty = Math.max(0, body.qty);
     product.available = product.qty > 0;
   }
+  const cost = cleanCost(body.cost);
+  if (typeof cost === 'number') product.cost = cost;
   const pyr = cleanPyramid(body.pyramid);
   if (pyr) product.pyramid = pyr;
   products.push(product);
@@ -768,6 +781,11 @@ app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
     }
   }
   if (typeof body.available === 'boolean') product.available = body.available;
+  if (typeof body.cost !== 'undefined') {
+    const cost = cleanCost(body.cost);
+    if (cost === null) delete product.cost;
+    else if (typeof cost === 'number') product.cost = cost;
+  }
   if (typeof body.ar === 'string' && body.ar.trim()) product.ar = body.ar.trim();
   if (typeof body.name === 'string') product.name = body.name.trim();
   if (typeof body.notes === 'string' && body.notes.trim()) product.notes = body.notes.trim();
@@ -1125,9 +1143,19 @@ app.get('/api/admin/stats', requireAdmin, (req, res) => {
   });
 });
 
+const STATUS_ORDER = { new: 0, confirmed: 1, delivered: 2, cancelled: 3 };
 app.get('/api/admin/orders', requireAdmin, (req, res) => {
-  const orders = readTable('orders').sort((a, b) => b.createdAt - a.createdAt);
-  res.json(orders);
+  const orders = readTable('orders');
+  const productsById = Object.fromEntries(readTable('products').map(p => [p.id, p]));
+  const reserved = reservedByOpenOrders(orders);
+  res.json(orders
+    .sort((a, b) => (STATUS_ORDER[a.status || 'new'] - STATUS_ORDER[b.status || 'new']) || (b.createdAt - a.createdAt))
+    .map(o => withStockCheck(o, productsById, reserved)));
+});
+
+/* just the count of new orders, for the badge in the admin panel */
+app.get('/api/admin/orders/new-count', requireAdmin, (req, res) => {
+  res.json({ count: readTable('orders').filter(o => (o.status || 'new') === 'new').length });
 });
 
 function orderUserKey(req) {
@@ -1305,18 +1333,214 @@ app.put('/api/admin/orders/:id', requireAdmin, (req, res) => {
   const allowed = ['new', 'confirmed', 'delivered', 'cancelled'];
   const { status } = req.body || {};
   if (!allowed.includes(status)) return res.status(400).json({ error: 'حالة غير صحيحة' });
+  const was = order.status || 'new';
+  if (was === status) return res.json(order);
+
+  const products = readTable('products');
+  let ledger = null;
+  if (status === 'delivered' && !order.stockApplied) {
+    const r = applyDelivery(order, products);
+    if (r.error) return res.status(409).json({ error: r.error });
+    ledger = r.ledger;
+  } else if (was === 'delivered' && order.stockApplied) {
+    ledger = undoDelivery(order, products).ledger;
+  }
   order.status = status;
+  if (ledger) {
+    writeTable('products', products);
+    writeTable('ledger', ledger);
+  }
   writeTable('orders', orders);
-  res.json(order);
+  const productsById = Object.fromEntries(products.map(p => [p.id, p]));
+  res.json(withStockCheck(order, productsById, reservedByOpenOrders(orders)));
 });
 
 app.delete('/api/admin/orders/:id', requireAdmin, (req, res) => {
   const orders = readTable('orders');
   const idx = orders.findIndex(o => o.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'الطلب غير موجود' });
+  if (orders[idx].status === 'delivered') {
+    return res.status(400).json({ error: 'لا يمكن حذف طلب مُسلَّم لأنه مسجّل في الحسابات — غيّر حالته أولاً إذا كان خطأ.' });
+  }
   orders.splice(idx, 1);
   writeTable('orders', orders);
   res.json({ ok: true });
+});
+
+/* ---------------------------------------------------------
+   stock + accounting
+   - An order does NOT touch stock when it's placed. Every open
+     order ("new"/"confirmed") is checked against the stock so the
+     admin sees problems early.
+   - When an order becomes "delivered", its quantities are taken out
+     of stock and a sale is written to the ledger (data/ledger.json).
+   - If a delivered order is moved back to another status, the stock
+     is returned and its ledger entry is marked reversed.
+--------------------------------------------------------- */
+const OPEN_STATUSES = ['new', 'confirmed'];
+const isTracked = p => p && typeof p.qty === 'number';
+
+/* how many units of each product are waiting in open orders */
+function reservedByOpenOrders(orders) {
+  const r = {};
+  orders.filter(o => OPEN_STATUSES.includes(o.status || 'new')).forEach(o =>
+    (o.items || []).forEach(it => { r[it.id] = (r[it.id] || 0) + (it.qty || 0); }));
+  return r;
+}
+
+/* attaches a live stock check to every item of an order */
+function withStockCheck(order, productsById, reserved) {
+  const open = OPEN_STATUSES.includes(order.status || 'new');
+  let ok = true;
+  const items = (order.items || []).map(it => {
+    const p = productsById[it.id];
+    if (!p) { if (open) ok = false; return { ...it, stock: { missing: true } }; }
+    if (!isTracked(p)) return { ...it, stock: { tracked: false } };
+    const enough = p.qty >= it.qty;
+    const allOpenFit = p.qty >= (reserved[it.id] || 0);
+    if (open && !enough) ok = false;
+    return { ...it, stock: { tracked: true, inStock: p.qty, reservedByOpen: reserved[it.id] || 0, enough, allOpenFit } };
+  });
+  return { ...order, items, stockOk: open ? ok : null };
+}
+
+function readLedger() { return readTable('ledger', []); }
+
+/* stock out + ledger in, when an order is delivered */
+function applyDelivery(order, products) {
+  const byId = Object.fromEntries(products.map(p => [p.id, p]));
+  const shortages = [];
+  for (const it of order.items || []) {
+    const p = byId[it.id];
+    if (isTracked(p) && p.qty < it.qty) shortages.push(`${p.ar} (في المخزن ${p.qty}، المطلوب ${it.qty})`);
+  }
+  if (shortages.length) return { error: 'الكمية في المخزن غير كافية: ' + shortages.join('، ') + ' — حدّث المخزن أولاً ثم أعد المحاولة.' };
+
+  const lines = (order.items || []).map(it => {
+    const p = byId[it.id];
+    if (isTracked(p)) { p.qty -= it.qty; p.available = p.qty > 0; }
+    const unitCost = p && typeof p.cost === 'number' ? p.cost : null;
+    return {
+      id: it.id, ar: it.ar, qty: it.qty, unitPrice: it.priceNum, lineTotal: it.lineTotal,
+      unitCost, lineCost: unitCost === null ? null : unitCost * it.qty,
+      lineProfit: unitCost === null ? null : it.lineTotal - unitCost * it.qty,
+      stockTaken: isTracked(p)
+    };
+  });
+  order.stockApplied = true;
+  order.deliveredAt = Date.now();
+  const ledger = readLedger();
+  ledger.push({
+    id: genId('sale'), orderId: order.id, date: order.deliveredAt,
+    customer: order.name, phone: order.phone, paymentMethod: order.paymentMethod,
+    deliveryMethod: order.deliveryMethod, lines,
+    subtotal: order.subtotal, deliveryFee: order.deliveryFee || 0, total: order.total,
+    reversedAt: null
+  });
+  return { ledger };
+}
+
+/* stock back + ledger reversed, when a delivered order is changed back */
+function undoDelivery(order, products) {
+  const byId = Object.fromEntries(products.map(p => [p.id, p]));
+  const ledger = readLedger();
+  const entry = ledger.filter(e => e.orderId === order.id && !e.reversedAt).pop();
+  const taken = entry ? entry.lines.filter(l => l.stockTaken) : (order.items || []);
+  for (const l of taken) {
+    const p = byId[l.id];
+    if (isTracked(p)) { p.qty += l.qty; p.available = p.qty > 0; }
+  }
+  if (entry) entry.reversedAt = Date.now();
+  order.stockApplied = false;
+  delete order.deliveredAt;
+  return { ledger };
+}
+
+/* totals for a date range (ms). Only delivered, non-reversed sales count. */
+function accountingSummary(from, to) {
+  const products = readTable('products');
+  const orders = readTable('orders');
+  const ledger = readLedger();
+  const inRange = t => (!from || t >= from) && (!to || t <= to);
+  const sales = ledger.filter(e => !e.reversedAt && inRange(e.date));
+
+  let salesTotal = 0, deliveryFees = 0, collected = 0, units = 0;
+  let costKnown = 0, profitKnown = 0, salesWithCost = 0, unitsWithoutCost = 0;
+  const byPayment = {}, byProduct = {}, byDay = {};
+  for (const e of sales) {
+    salesTotal += e.subtotal; deliveryFees += e.deliveryFee; collected += e.total;
+    byPayment[e.paymentMethod || 'cod'] = (byPayment[e.paymentMethod || 'cod'] || 0) + e.total;
+    const day = new Date(e.date).toISOString().slice(0, 10);
+    byDay[day] = byDay[day] || { day, orders: 0, sales: 0 };
+    byDay[day].orders += 1; byDay[day].sales += e.subtotal;
+    for (const l of e.lines) {
+      units += l.qty;
+      const bp = byProduct[l.id] = byProduct[l.id] || { id: l.id, ar: l.ar, qty: 0, sales: 0, profit: 0, profitKnown: true };
+      bp.qty += l.qty; bp.sales += l.lineTotal;
+      if (l.lineCost === null) { unitsWithoutCost += l.qty; bp.profitKnown = false; }
+      else { costKnown += l.lineCost; profitKnown += l.lineProfit; salesWithCost += l.lineTotal; bp.profit += l.lineProfit; }
+    }
+  }
+  const open = orders.filter(o => OPEN_STATUSES.includes(o.status || 'new'));
+  const tracked = products.filter(isTracked);
+  return {
+    range: { from: from || null, to: to || null },
+    orders: sales.length,
+    units,
+    sales: salesTotal,
+    deliveryFees,
+    collected,
+    cost: costKnown,
+    profit: profitKnown,
+    margin: salesWithCost ? profitKnown / salesWithCost : null,
+    unitsWithoutCost,
+    avgOrder: sales.length ? Math.round(collected / sales.length) : 0,
+    byPayment,
+    topProducts: Object.values(byProduct).sort((a, b) => b.qty - a.qty || b.sales - a.sales).slice(0, 10),
+    byDay: Object.values(byDay).sort((a, b) => a.day.localeCompare(b.day)),
+    pending: { orders: open.length, value: open.reduce((s, o) => s + (o.total || 0), 0) },
+    cancelled: orders.filter(o => o.status === 'cancelled' && inRange(o.createdAt || 0)).length,
+    stock: {
+      trackedProducts: tracked.length,
+      untrackedProducts: products.length - tracked.length,
+      units: tracked.reduce((s, p) => s + p.qty, 0),
+      valueAtPrice: tracked.reduce((s, p) => s + p.qty * (p.priceNum || 0), 0),
+      valueAtCost: tracked.filter(p => typeof p.cost === 'number').reduce((s, p) => s + p.qty * p.cost, 0),
+      withoutCost: tracked.filter(p => typeof p.cost !== 'number').length,
+      low: tracked.filter(p => p.qty > 0 && p.qty <= 2).map(p => ({ id: p.id, ar: p.ar, qty: p.qty })),
+      out: tracked.filter(p => p.qty <= 0).map(p => ({ id: p.id, ar: p.ar }))
+    },
+    entries: ledger.filter(e => inRange(e.date)).slice(-100).reverse()
+  };
+}
+
+app.get('/api/admin/accounting', requireAdmin, (req, res) => {
+  const from = parseInt(req.query.from, 10) || 0;
+  const to = parseInt(req.query.to, 10) || 0;
+  res.json(accountingSummary(from, to));
+});
+
+/* spreadsheet for the accountant: one row per product line of each sale */
+app.get('/api/admin/accounting.csv', requireAdmin, (req, res) => {
+  const from = parseInt(req.query.from, 10) || 0;
+  const to = parseInt(req.query.to, 10) || 0;
+  const inRange = t => (!from || t >= from) && (!to || t <= to);
+  const cell = v => {
+    const s = v === null || v === undefined ? '' : String(v);
+    // quote, and neutralise spreadsheet formulas typed by customers (=, +, -, @)
+    return '"' + (/^[=+\-@]/.test(s) ? "'" + s : s).replace(/"/g, '""') + '"';
+  };
+  const rows = [['التاريخ', 'رقم الطلب', 'الزبون', 'العطر', 'الكمية', 'سعر الوحدة', 'سعر الشراء', 'المجموع', 'الربح', 'رسوم التوصيل', 'طريقة الدفع', 'الحالة']];
+  for (const e of readLedger().filter(x => inRange(x.date))) {
+    e.lines.forEach((l, i) => rows.push([
+      new Date(e.date).toISOString().replace('T', ' ').slice(0, 16), e.orderId, e.customer, l.ar, l.qty,
+      l.unitPrice, l.unitCost, l.lineTotal, l.lineProfit, i === 0 ? e.deliveryFee : '', e.paymentMethod,
+      e.reversedAt ? 'ملغى (أُرجع للمخزن)' : 'مُسلَّم'
+    ]));
+  }
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="alrayhan-accounting.csv"');
+  res.send('﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n'));
 });
 
 /* ---------------------------------------------------------
