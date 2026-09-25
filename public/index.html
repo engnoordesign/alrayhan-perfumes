@@ -165,7 +165,7 @@
 
   /* phones: two compact product cards per row instead of one very long list */
   @media (max-width:520px){
-    .grid-cards{ grid-template-columns:repeat(2, minmax(0,1fr)) !important; }
+    .grid-cards{ --cols:2 !important; }
     .card{ padding:16px 12px; min-height:0; }
     .card h4{ font-size:15px; margin:10px 0 4px; line-height:1.4; }
     .card .descriptor{ display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:11.5px; margin-bottom:10px; }
@@ -174,7 +174,7 @@
     .card-buy{ font-size:12px !important; padding:9px 6px !important; }
     .card-top .badge-original, .card-top .badge-lowstock, .card-top .badge-outofstock, .card-top .unavailable-badge{ font-size:9.5px; padding:2px 7px; }
   }
-  @media (max-width:340px){ .grid-cards{ grid-template-columns:1fr !important; } }
+  @media (max-width:340px){ .grid-cards{ --cols:1 !important; } }
 
   /* profile tabs stay on one row on phones */
   @media (max-width:520px){
@@ -404,7 +404,8 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   .filter-pill:hover{ color:var(--bone); border-color:var(--bone-dim); }
   .filter-pill.active{ background:var(--gold); color:var(--black); border-color:var(--gold); }
 
-  .brand-group{ margin-bottom:56px; }
+  .brand-group{ margin-bottom:56px; scroll-margin-top:96px; }
+  #collection{ scroll-margin-top:72px; }
   .brand-group:last-child{ margin-bottom:0; }
   .brand-group-head{ display:flex; align-items:center; gap:14px; margin-bottom:22px; padding-bottom:14px; border-bottom:1px solid var(--line); }
   .brand-icon{ width:36px; height:36px; flex-shrink:0; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); border-radius:50%; padding:6px; }
@@ -413,10 +414,14 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   .brand-group-head h3{ font-family:var(--display); font-weight:700; font-size:24px; color:var(--gold-bright); }
   .brand-group-head span.tag{ font-size:12px; color:var(--bone-dim); }
 
-  .grid-cards{ display:grid; grid-template-columns:repeat(4, 1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
-  @media (max-width:980px){ .grid-cards{ grid-template-columns:repeat(3,1fr);} }
-  @media (max-width:760px){ .grid-cards{ grid-template-columns:repeat(2,1fr);} }
-  @media (max-width:520px){ .grid-cards{ grid-template-columns:1fr;} }
+  /* product grid: the last row is centered and any empty space has the card
+     colour; the thin lines between cards come from each card's outline */
+  .grid-cards{ --cols:4; display:flex; flex-wrap:wrap; justify-content:center; gap:1px;
+    background:var(--panel); border:1px solid var(--line); }
+  .grid-cards > *{ flex:0 0 calc((100% - (var(--cols) - 1) * 1px) / var(--cols)); min-width:0; outline:1px solid var(--line); }
+  @media (max-width:980px){ .grid-cards{ --cols:3; } }
+  @media (max-width:760px){ .grid-cards{ --cols:2; } }
+  @media (max-width:520px){ .grid-cards{ --cols:1; } }
 
   .card{ background:var(--panel); padding:28px 22px; display:flex; flex-direction:column; min-height:290px; transition:background .25s; }
   .card:hover{ background:var(--panel-2); }
@@ -1764,16 +1769,19 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       </div>`;
   }
 
-  function renderGroups(filter){
+  /* All groups are always shown. The filter pills don't hide anything any more:
+     they take the customer to that group's place on the page. */
+  function renderGroups(){
     groupsWrap.innerHTML = '';
-    const brands = filter === 'all' ? brandOrder : [filter];
-    brands.forEach(b=>{
+    brandOrder.forEach(b=>{
       const items = products.filter(p=>p.brand === b);
       if(!items.length) return;
       const meta = brandMeta[b];
       if(!meta) return;
       const group = document.createElement('div');
       group.className = 'brand-group';
+      group.id = 'group-' + b;
+      group.dataset.brand = b;
       group.innerHTML = `
         <div class="brand-group-head">
           <span class="brand-icon">${brandIcon(b)}</span>
@@ -1794,15 +1802,44 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     const filters = [{ key:'all', label:'الكل' }].concat(brandOrder.map(b=>({key:b, label:brandMeta[b].label})));
     filterRow.innerHTML = filters.map(f=>`<button class="filter-pill${f.key===activeKey?' active':''}" data-filter="${f.key}">${f.label}</button>`).join('');
     filterRow.querySelectorAll('.filter-pill[data-filter]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        filterRow.querySelectorAll('.filter-pill').forEach(b=>b.classList.remove('active'));
-        btn.classList.add('active');
-        renderGroups(btn.dataset.filter);
-      });
+      btn.addEventListener('click', ()=> goToGroup(btn.dataset.filter));
     });
   }
+
+  function setActivePill(key){
+    filterRow.querySelectorAll('.filter-pill').forEach(b=> b.classList.toggle('active', b.dataset.filter === key));
+  }
+
+  /* smooth-scrolls to a brand group ("all" → the top of the collection) */
+  let pillLockUntil = 0;
+  function goToGroup(key){
+    const target = key && key !== 'all' ? document.getElementById('group-' + key) : null;
+    setActivePill(target ? key : 'all');
+    pillLockUntil = Date.now() + 900; // keep the tapped pill highlighted while the page scrolls
+    (target || document.getElementById('collection')).scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  /* as the customer scrolls, highlight the group they're looking at */
+  let spyTicking = false;
+  window.addEventListener('scroll', ()=>{
+    if(spyTicking) return;
+    spyTicking = true;
+    requestAnimationFrame(()=>{
+      spyTicking = false;
+      if(Date.now() < pillLockUntil) return;
+      const groups = groupsWrap.querySelectorAll('.brand-group');
+      if(!groups.length) return;
+      const line = 140; // just under the fixed header
+      let current = 'all';
+      groups.forEach(g=>{ if(g.getBoundingClientRect().top <= line) current = g.dataset.brand; });
+      const firstTop = groups[0].getBoundingClientRect().top;
+      if(firstTop > line) current = 'all';
+      setActivePill(current);
+    });
+  }, { passive:true });
+
   renderFilterPills();
-  renderGroups('all');
+  renderGroups();
 
   function handleProductGridClick(e){
     const favBtn = e.target.closest('.fav-btn');
@@ -2759,13 +2796,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       if(action === 'settings'){ currentUser() ? openProfilePanel() : openAuth(); }
       else if(action === 'ai'){ openLight(); }
       else if(action === 'perfumes'){
-        const allPill = filterRow.querySelector('.filter-pill[data-filter="all"]');
-        if(allPill){
-          filterRow.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
-          allPill.classList.add('active');
-          renderGroups('all');
-        }
-        document.getElementById('collection').scrollIntoView({ behavior:'smooth' });
+        goToGroup('all');
       }
       else if(action === 'favorites'){ openFavoritesPanel(); }
     });
@@ -3185,14 +3216,7 @@ function adSlideHTML(s, i){
 
     heroSlider.querySelectorAll('.slide-content button[data-brand]').forEach(btn=>{
       btn.addEventListener('click', ()=>{
-        const brand = btn.dataset.brand;
-        const pill = filterRow.querySelector(`.filter-pill[data-filter="${brand}"]`);
-        if(pill){
-          filterRow.querySelectorAll('.filter-pill').forEach(p=>p.classList.remove('active'));
-          pill.classList.add('active');
-          renderGroups(brand);
-        }
-        document.getElementById('collection').scrollIntoView({ behavior:'smooth' });
+        goToGroup(btn.dataset.brand);
       });
     });
 
@@ -3273,8 +3297,7 @@ new MutationObserver(()=>{ heroIndex = 0; renderHeroSlides(); restartHeroTimer()
     }
 
     renderFilterPills();
-    const activeFilter = document.querySelector('.filter-pill.active');
-    renderGroups(activeFilter ? activeFilter.dataset.filter : 'all');
+    renderGroups();
     renderHeroSlides();
     restartHeroTimer();
     renderCart();
