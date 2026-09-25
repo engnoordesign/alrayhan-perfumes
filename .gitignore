@@ -11,6 +11,7 @@ package-lock.json
 # ---- private customer data (lives only on your machine/server) ----
 server/data/users.json
 server/data/orders.json
+server/data/ledger.json
 
 # ---- email account + app password (set from the admin panel, tab "البريد") ----
 server/data/mail-settings.json
