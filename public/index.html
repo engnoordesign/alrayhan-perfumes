@@ -513,7 +513,9 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   }
   .music-toast.show{ opacity:1; transform:translate(-50%, 0); }
   .music-toast .mt-note{ color:var(--gold-bright); }
-  .music-toast small{ color:var(--bone-dim); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; }
+  .music-toast{ overflow:hidden; }
+  .music-toast b{ flex:none; }
+  .music-toast small{ color:var(--bone-dim); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; min-width:0; }
   html[data-theme="light"] .music-toast{ box-shadow:0 8px 22px rgba(60,45,20,.14); }
   @media (max-width:640px){ .music-toast{ top:64px; } }
 
@@ -628,6 +630,71 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   .co-sum-total b{ color:var(--gold-bright); font-size:19px; }
   .co-submit{ width:100%; justify-content:center; margin-top:20px; }
   .co-note{ font-size:11.5px; color:var(--bone-dim); margin-top:12px; line-height:1.8; text-align:center; }
+
+  /* ---------- ORDER RECEIPT (save / print) ----------
+     The receipt is always a light "paper" card so it prints and saves
+     the same in dark and light mode. */
+  .receipt-modal{
+    position:fixed; inset:0; z-index:260; background:rgba(12,11,9,.8); backdrop-filter:blur(3px);
+    overflow-y:auto; padding:22px 16px 40px; display:flex; flex-direction:column; align-items:center;
+  }
+  .receipt-modal[hidden]{ display:none; }
+  .receipt-actions{ width:min(440px,100%); display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .receipt-actions .btn{ flex:1 1 auto; justify-content:center; padding:11px 14px; font-size:13.5px; }
+  .receipt-actions .btn.ghost{ color:#EFE8D8; border-color:rgba(239,232,216,.35); }
+  .receipt{
+    width:min(440px,100%); background:#FFFDF7; color:#2A241C; border-radius:12px; overflow:hidden;
+    box-shadow:0 18px 50px rgba(0,0,0,.45); font-family:var(--body); font-size:13.5px; line-height:1.7;
+    border-top:5px solid #C9A227; -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .rc-head{ text-align:center; padding:22px 22px 14px; }
+  .rc-head img{ width:86px; height:86px; object-fit:contain; display:block; margin:0 auto 4px; }
+  .rc-name{ font-family:var(--display); font-size:26px; font-weight:700; color:#8A6414; line-height:1.2; }
+  .rc-en{ font-size:10px; letter-spacing:.24em; color:#8a7f6b; }
+  .rc-title{ display:inline-block; margin-top:10px; padding:3px 16px; border-radius:999px; background:#1b160f; color:#E9C766; font-size:12.5px; font-weight:600; }
+  .rc-meta{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 20px; padding:12px 14px; background:#F6EEDC; border-radius:9px; }
+  .rc-meta .full{ grid-column:1 / -1; }
+  .rc-k{ display:block; font-size:11px; color:#7a6f5c; }
+  .rc-v{ display:block; font-weight:700; color:#1b160f; font-size:13.5px; }
+  .rc-id{ font-family:ui-monospace, Menlo, Consolas, monospace; direction:ltr; text-align:right; font-size:14.5px; letter-spacing:.02em; word-break:break-all; }
+  .rc-sec{ padding:14px 20px 4px; }
+  .rc-sec h4{ font-size:12px; color:#8A6414; letter-spacing:.06em; margin:0 0 6px; font-weight:700; }
+  .rc-row{ display:flex; justify-content:space-between; gap:14px; padding:5px 0; border-bottom:1px dashed #E3D8C0; }
+  .rc-row:last-child{ border-bottom:none; }
+  .rc-row span:first-child{ color:#7a6f5c; flex:none; }
+  .rc-row span:last-child{ text-align:left; font-weight:600; overflow-wrap:anywhere; }
+  .rc-ltr{ direction:ltr; unicode-bidi:isolate; }
+  .rc-items{ width:100%; border-collapse:collapse; font-size:13px; }
+  .rc-items th{ font-size:11px; color:#7a6f5c; font-weight:600; text-align:right; padding:4px 0; border-bottom:1px solid #E3D8C0; }
+  .rc-items td{ padding:6px 0; border-bottom:1px dashed #E3D8C0; vertical-align:top; }
+  .rc-items th:nth-child(2), .rc-items td:nth-child(2){ text-align:center; width:44px; }
+  .rc-items th:last-child, .rc-items td:last-child{ text-align:left; white-space:nowrap; }
+  .rc-total{ display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding:10px 14px; border-radius:9px; background:#1b160f; color:#EFE8D8; }
+  .rc-total b{ color:#E9C766; font-size:17px; }
+  .rc-note{ margin:14px 20px 0; padding:10px 12px; border:1px solid #E3C77A; border-radius:9px; background:#FFF8E4; font-size:12px; color:#5c5140; text-align:center; }
+  .rc-foot{ margin-top:16px; padding:16px 20px 18px; background:#1b160f; color:#CFC6B2; font-size:12px; }
+  .rc-foot h4{ color:#E9C766; font-size:12px; margin:0 0 6px; }
+  .rc-branches{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .rc-branches b{ display:block; color:#EFE8D8; font-size:12.5px; }
+  .rc-contact{ display:flex; flex-wrap:wrap; gap:6px 16px; border-top:1px solid rgba(239,232,216,.14); padding-top:10px; }
+  .rc-contact span{ white-space:nowrap; }
+  .rc-contact .rc-ltr{ color:#EFE8D8; font-weight:600; }
+  .rc-thanks{ text-align:center; margin-top:10px; color:#E9C766; font-family:var(--display); font-size:16px; }
+  .receipt-link{
+    all:unset; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; width:100%;
+    margin-top:12px; font-size:12.5px; color:var(--gold-bright); text-decoration:underline; text-underline-offset:3px;
+  }
+  .receipt-link svg{ width:15px; height:15px; }
+  @media (max-width:380px){ .rc-branches{ grid-template-columns:1fr; } .rc-meta{ grid-template-columns:1fr; } }
+
+  @media print{
+    @page{ size:A4; margin:8mm; }
+    html.printing-receipt, html.printing-receipt body{ background:#fff !important; }
+    html.printing-receipt body > *:not(#receiptModal){ display:none !important; }
+    html.printing-receipt #receiptModal{ position:static; display:block; background:none; backdrop-filter:none; padding:0; overflow:visible; }
+    html.printing-receipt .receipt-actions{ display:none !important; }
+    html.printing-receipt .receipt{ width:100%; max-width:120mm; margin:0 auto; box-shadow:none; border:1px solid #d9ceb4; border-top:5px solid #C9A227; zoom:.88; }
+  }
   .co-success{ display:none; text-align:center; padding:60px 20px; }
   .co-success.show{ display:block; }
   .co-success .tick{ width:64px; height:64px; border-radius:50%; background:var(--gold); color:var(--black); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:30px; }
@@ -1182,6 +1249,16 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     <button class="drawer-close" id="checkoutCloseBtn" aria-label="إغلاق">×</button>
   </div>
   <div id="checkoutContent"></div>
+</div>
+
+<!-- ORDER RECEIPT -->
+<div class="receipt-modal" id="receiptModal" role="dialog" aria-modal="true" aria-label="إيصال الطلب" hidden>
+  <div class="receipt-actions">
+    <button class="btn solid" id="receiptPrintBtn" type="button">طباعة / حفظ PDF</button>
+    <button class="btn ghost" id="receiptImgBtn" type="button">حفظ كصورة</button>
+    <button class="btn ghost" id="receiptCloseBtn" type="button">إغلاق</button>
+  </div>
+  <article class="receipt" id="receiptCard"></article>
 </div>
 
 <!-- PRODUCT QUICK VIEW -->
@@ -1959,7 +2036,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
 
     if(!entries.length){
       body.innerHTML = '<div class="drawer-empty">السلة فارغة حالياً.<br>تصفّحوا المجموعة وأضيفوا ما يعجبكم.</div>';
-      foot.innerHTML = '';
+      foot.innerHTML = `${loadReceipts().length ? '<button class="receipt-link" id="lastReceiptBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>إيصال آخر طلب</button>' : ''}`;
       return;
     }
 
@@ -1988,6 +2065,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       <div class="drawer-total"><span>الإجمالي</span><b>${fmtIQD(cartTotal())}</b></div>
       <button class="btn solid" id="goCheckoutBtn">إتمام الطلب</button>
       <button class="btn ghost" id="continueShoppingBtn">متابعة التسوق</button>
+      ${loadReceipts().length ? '<button class="receipt-link" id="lastReceiptBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>إيصال آخر طلب</button>' : ''}
     `;
   }
 
@@ -2015,6 +2093,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   document.getElementById('drawerFoot').addEventListener('click', (e)=>{
     if(e.target.id === 'continueShoppingBtn') closeDrawer();
     if(e.target.id === 'goCheckoutBtn'){ closeDrawer(); openCheckout(); }
+    if(e.target.closest('#lastReceiptBtn')){ closeDrawer(); openReceipt(loadReceipts()[0]); }
   });
 
   renderCart();
@@ -2685,7 +2764,10 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
         <h3>تم استلام طلبكم بنجاح</h3>
         <p>شكراً لثقتكم بعطور الريحان. وصل طلبكم إلى إدارة المحل وسنتواصل معكم قريباً على الرقم الذي أدخلتموه لتأكيد الطلب.</p>
         <p style="margin-top:14px; font-size:13px; color:var(--bone-dim);">رقم الطلب: <b id="coOrderId" style="color:var(--gold-bright);"></b></p>
-        <button class="btn ghost" id="backToCartBtn" style="margin-top:24px;">إغلاق</button>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:24px;">
+          <button class="btn solid" id="viewReceiptBtn" type="button">عرض الإيصال وحفظه</button>
+          <button class="btn ghost" id="backToCartBtn" type="button">إغلاق</button>
+        </div>
       </div>
     `;
   }
@@ -2771,6 +2853,9 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
         }
 
         document.getElementById('coOrderId').textContent = data.order.id;
+        const receipt = receiptFromOrder(data.order);
+        storeReceipt(receipt);
+        setTimeout(()=>openReceipt(receipt), 350);
         document.querySelector('.checkout-wrap').style.display = 'none';
         document.getElementById('coSuccess').classList.add('show');
 
@@ -2787,7 +2872,244 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
 
   document.addEventListener('click', (e)=>{
     if(e.target.id === 'backToCartBtn'){ closeCheckout(); }
+    if(e.target.id === 'viewReceiptBtn'){ openReceipt(loadReceipts()[0]); }
   });
+
+  /* =====================================================
+     ORDER RECEIPT — shown after every order; the customer can print it,
+     save it as PDF (from the print dialog) or save it as an image, and
+     reopen the last receipts later from the cart.
+  ===================================================== */
+  const STORE_INFO = {
+    name: 'عطور الريحان', en: 'ALRAYHAN PERFUMES',
+    branches: [
+      { key:'البلديات', title:'فرع حي البلديات', addr:'الموصل – حي البلديات، شارع جامع سليمان، مقابل صيدلية الحرة' },
+      { key:'المثنى',   title:'فرع حي المثنى',   addr:'الموصل – حي المثنى، الشارع العام' }
+    ],
+    phone: '07718302002', instagram: '@alrayhan_perfumes', facebook: 'عطور الريحان'
+  };
+    const escR = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+  function receiptFromOrder(o){
+    return {
+      id: o.id, createdAt: o.createdAt, name: o.name, phone: o.phone,
+      deliveryMethod: o.deliveryMethod, branch: o.branch, address: o.address, paymentMethod: o.paymentMethod,
+      items: (o.items || []).map(i => ({ ar: i.ar, qty: i.qty, lineTotal: i.lineTotal })),
+      subtotal: o.subtotal, deliveryFee: o.deliveryFee, total: o.total
+    };
+  }
+  function loadReceipts(){
+    try{ const a = JSON.parse(localStorage.getItem('alrayhan_receipts') || '[]'); return Array.isArray(a) ? a : []; }catch(e){ return []; }
+  }
+  function storeReceipt(r){
+    try{
+      const list = loadReceipts().filter(x => x && x.id !== r.id);
+      list.unshift(r);
+      localStorage.setItem('alrayhan_receipts', JSON.stringify(list.slice(0, 5)));
+    }catch(e){}
+  }
+  function receiptDateParts(ts){
+    const d = new Date(ts);
+    const opt = (o) => { try{ return Object.assign({ timeZone:'Asia/Baghdad' }, o); }catch(e){ return o; } };
+    let date, time;
+    try{
+      date = d.toLocaleDateString('ar-IQ-u-nu-latn', opt({ weekday:'long', year:'numeric', month:'long', day:'numeric' }));
+      time = d.toLocaleTimeString('ar-IQ-u-nu-latn', opt({ hour:'numeric', minute:'2-digit' }));
+    }catch(e){
+      date = d.toLocaleDateString(); time = d.toLocaleTimeString();
+    }
+    return { date, time };
+  }
+  function receiptFields(r){
+    const branch = STORE_INFO.branches.find(b => b.key === r.branch);
+    const isPickup = r.deliveryMethod === 'pickup';
+    const pay = paymentMethods.find(p => p.id === r.paymentMethod);
+    return {
+      method: isPickup ? 'استلام من الفرع' : 'توصيل للمنزل',
+      location: isPickup ? (branch ? branch.title + ' — ' + branch.addr : 'استلام من الفرع') : (r.address || '—'),
+      payment: pay ? pay.title : 'الدفع عند الاستلام',
+      ...receiptDateParts(r.createdAt)
+    };
+  }
+
+  function receiptHTML(r){
+    const f = receiptFields(r);
+    return `
+      <div class="rc-head">
+        <img src="logo-light.png" alt="">
+        <div class="rc-name">${STORE_INFO.name}</div>
+        <div class="rc-en">${STORE_INFO.en}</div>
+        <span class="rc-title">إيصال طلب</span>
+      </div>
+      <div class="rc-meta">
+        <div class="full"><span class="rc-k">رقم الطلب</span><span class="rc-v rc-id">${escR(r.id)}</span></div>
+        <div><span class="rc-k">التاريخ</span><span class="rc-v">${escR(f.date)}</span></div>
+        <div><span class="rc-k">الوقت</span><span class="rc-v">${escR(f.time)}</span></div>
+      </div>
+      <div class="rc-sec">
+        <h4>معلومات الزبون</h4>
+        <div class="rc-row"><span>الاسم</span><span>${escR(r.name)}</span></div>
+        <div class="rc-row"><span>رقم الهاتف</span><span class="rc-ltr">${escR(r.phone)}</span></div>
+        <div class="rc-row"><span>طريقة الاستلام</span><span>${escR(f.method)}</span></div>
+        <div class="rc-row"><span>${r.deliveryMethod === 'pickup' ? 'الفرع' : 'العنوان'}</span><span>${escR(f.location)}</span></div>
+        <div class="rc-row"><span>طريقة الدفع</span><span>${escR(f.payment)}</span></div>
+      </div>
+      <div class="rc-sec">
+        <h4>تفاصيل الطلب</h4>
+        <table class="rc-items">
+          <thead><tr><th>المنتج</th><th>الكمية</th><th>المبلغ</th></tr></thead>
+          <tbody>${r.items.map(i => `<tr><td>${escR(i.ar)}</td><td>${Number(i.qty) || 0}</td><td>${fmtIQD(Number(i.lineTotal) || 0)}</td></tr>`).join('')}</tbody>
+        </table>
+        <div class="rc-row" style="margin-top:6px"><span>مجموع المنتجات</span><span>${fmtIQD(Number(r.subtotal) || 0)}</span></div>
+        <div class="rc-row"><span>رسوم التوصيل</span><span>${r.deliveryFee ? fmtIQD(r.deliveryFee) : 'مجاناً'}</span></div>
+        <div class="rc-total"><span>الإجمالي</span><b>${fmtIQD(Number(r.total) || 0)}</b></div>
+      </div>
+      <div class="rc-note">احتفظ بهذا الإيصال، واذكر <b>رقم الطلب</b> عند تواصلك معنا لمتابعة حالة طلبك.</div>
+      <div class="rc-foot">
+        <h4>فروعنا</h4>
+        <div class="rc-branches">
+          ${STORE_INFO.branches.map(b => `<div><b>${b.title}</b>${b.addr}</div>`).join('')}
+        </div>
+        <div class="rc-contact">
+          <span>واتساب / هاتف: <span class="rc-ltr">${STORE_INFO.phone}</span></span>
+          <span>إنستغرام: <span class="rc-ltr">${STORE_INFO.instagram}</span></span>
+          <span>فيسبوك: <span class="rc-ltr">${STORE_INFO.facebook}</span></span>
+        </div>
+        <div class="rc-thanks">شكراً لتسوّقكم من عطور الريحان</div>
+      </div>`;
+  }
+
+  let currentReceipt = null;
+  function openReceipt(r){
+    if(!r) return;
+    currentReceipt = r;
+    document.getElementById('receiptCard').innerHTML = receiptHTML(r);
+    const m = document.getElementById('receiptModal');
+    m.hidden = false; m.scrollTop = 0;
+    document.getElementById('receiptPrintBtn').focus();
+  }
+  function closeReceipt(){ document.getElementById('receiptModal').hidden = true; }
+
+  document.getElementById('receiptCloseBtn').addEventListener('click', closeReceipt);
+  document.getElementById('receiptModal').addEventListener('click', e => { if(e.target.id === 'receiptModal') closeReceipt(); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && !document.getElementById('receiptModal').hidden) closeReceipt(); });
+  document.getElementById('receiptPrintBtn').addEventListener('click', ()=>{
+    document.documentElement.classList.add('printing-receipt');
+    const done = () => { document.documentElement.classList.remove('printing-receipt'); window.removeEventListener('afterprint', done); };
+    window.addEventListener('afterprint', done);
+    setTimeout(()=>{ window.print(); setTimeout(done, 1500); }, 50);
+  });
+  document.getElementById('receiptImgBtn').addEventListener('click', async (e)=>{
+    if(!currentReceipt) return;
+    const btn = e.currentTarget, label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'جارِ التجهيز...';
+    try{
+      const blob = await receiptImage(currentReceipt);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'alrayhan-receipt-' + currentReceipt.id + '.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    }catch(err){ alert('تعذر حفظ الصورة — استخدم زر الطباعة ثم «حفظ كـ PDF».'); }
+    btn.disabled = false; btn.textContent = label;
+  });
+
+  /* draws the same receipt on a canvas and returns a PNG blob */
+  async function receiptImage(r){
+    const f = receiptFields(r);
+    try{ await Promise.all(['400','600','700'].map(w => document.fonts.load(w + ' 20px Cairo'))); await document.fonts.load('700 20px Amiri'); }catch(e){}
+    const logo = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = 'logo-light.png'; });
+    const W = 900, P = 56, S = 2;
+    const C = { paper:'#FFFDF7', ink:'#2A241C', dim:'#7a6f5c', gold:'#C9A227', goldD:'#8A6414', dark:'#1b160f', bone:'#EFE8D8', boneD:'#CFC6B2', line:'#E3D8C0', meta:'#F6EEDC' };
+    const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+    const font = (w, px, fam) => `${w} ${px}px ${fam || 'Cairo'}, sans-serif`;
+    const wrap = (text, maxW, fnt) => {
+      ctx.font = fnt; const words = String(text).split(/\s+/); const lines = []; let cur = '';
+      words.forEach(w => { const t = cur ? cur + ' ' + w : w; if(ctx.measureText(t).width > maxW && cur){ lines.push(cur); cur = w; } else cur = t; });
+      if(cur) lines.push(cur); return lines;
+    };
+    // pass 1 measures, pass 2 draws
+    const paint = (draw) => {
+      let y = 0;
+      const R = W - P;
+      const txt = (s, x, yy, fnt, color, align) => { if(!draw) return; ctx.font = fnt; ctx.fillStyle = color; ctx.textAlign = align || 'right'; ctx.fillText(s, x, yy); };
+      const rect = (x, yy, w, h, color, rad) => { if(!draw) return; ctx.fillStyle = color; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(x, yy, w, h, rad || 0); else ctx.rect(x, yy, w, h); ctx.fill(); };
+      const hr = (yy) => { if(!draw) return; ctx.strokeStyle = C.line; ctx.setLineDash([6, 6]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(P, yy); ctx.lineTo(R, yy); ctx.stroke(); ctx.setLineDash([]); };
+      rect(0, 0, W, 10, C.gold);
+      y = 40;
+      if(logo && draw) ctx.drawImage(logo, W/2 - 80, y, 160, 160);
+      y += 170;
+      txt(STORE_INFO.name, W/2, y + 40, font(700, 50, 'Amiri'), C.goldD, 'center'); y += 62;
+      txt(STORE_INFO.en, W/2, y + 16, font(600, 18), C.dim, 'center'); y += 34;
+      rect(W/2 - 95, y, 190, 44, C.dark, 22); txt('إيصال طلب', W/2, y + 30, font(700, 22), '#E9C766', 'center'); y += 70;
+      // meta box
+      const mh = 190; rect(P, y, W - 2*P, mh, C.meta, 18);
+      txt('رقم الطلب', R - 24, y + 38, font(400, 19), C.dim);
+      txt(r.id, R - 24, y + 76, font(700, 27, 'ui-monospace, Menlo, Consolas, monospace'), C.dark);
+      txt('التاريخ', R - 24, y + 124, font(400, 19), C.dim); txt(f.date, R - 24, y + 160, font(700, 23), C.dark);
+      txt('الوقت', W/2 - 10, y + 124, font(400, 19), C.dim); txt(f.time, W/2 - 10, y + 160, font(700, 23), C.dark);
+      y += mh + 34;
+      const section = (title) => { txt(title, R, y + 24, font(700, 21), C.goldD); y += 42; };
+      const row = (k, v) => {
+        const lines = wrap(v, W - 2*P - 200, font(600, 22));
+        txt(k, R, y + 28, font(400, 21), C.dim);
+        lines.forEach((ln, i) => txt(ln, P, y + 28 + i * 34, font(600, 22), C.ink, 'left'));
+        y += 18 + Math.max(1, lines.length) * 34; hr(y - 8); y += 6;
+      };
+      section('معلومات الزبون');
+      row('الاسم', r.name); row('رقم الهاتف', r.phone); row('طريقة الاستلام', f.method);
+      row(r.deliveryMethod === 'pickup' ? 'الفرع' : 'العنوان', f.location); row('طريقة الدفع', f.payment);
+      y += 16; section('تفاصيل الطلب');
+      r.items.forEach(i => {
+        const lines = wrap(i.ar, W - 2*P - 330, font(600, 22));
+        lines.forEach((ln, k) => txt(ln, R, y + 28 + k * 34, font(600, 22), C.ink));
+        txt('× ' + (Number(i.qty) || 0), P + 250, y + 28, font(600, 22), C.dim, 'center');
+        txt(fmtIQD(Number(i.lineTotal) || 0), P, y + 28, font(700, 22), C.ink, 'left');
+        y += 18 + lines.length * 34; hr(y - 8); y += 6;
+      });
+      row('مجموع المنتجات', fmtIQD(Number(r.subtotal) || 0));
+      row('رسوم التوصيل', r.deliveryFee ? fmtIQD(r.deliveryFee) : 'مجاناً');
+      y += 6; rect(P, y, W - 2*P, 70, C.dark, 16);
+      txt('الإجمالي', R - 24, y + 45, font(600, 23), C.bone); txt(fmtIQD(Number(r.total) || 0), P + 24, y + 47, font(700, 30), '#E9C766', 'left');
+      y += 100;
+      const note = wrap('احتفظ بهذا الإيصال، واذكر رقم الطلب عند تواصلك معنا لمتابعة حالة طلبك.', W - 2*P - 40, font(600, 19));
+      rect(P, y, W - 2*P, 30 + note.length * 30, '#FFF3D6', 14);
+      note.forEach((ln, i) => txt(ln, W/2, y + 38 + i * 30, font(600, 19), '#5c5140', 'center'));
+      y += 30 + note.length * 30 + 34;
+      // footer
+      const top = y;
+      let fy = top + 44;
+      const colW = (W - 2*P - 30) / 2;
+      const bl = STORE_INFO.branches.map(b => wrap(b.addr, colW, font(400, 18)));
+      const fh = 300 + Math.max(...bl.map(l => l.length)) * 28;
+      rect(0, top, W, fh, C.dark);
+      txt('فروعنا', R, fy, font(700, 21), '#E9C766'); fy += 38;
+      STORE_INFO.branches.forEach((b, i) => {
+        const x = i === 0 ? R : R - colW - 30;
+        txt(b.title, x, fy, font(700, 20), C.bone);
+        bl[i].forEach((ln, k) => txt(ln, x, fy + 32 + k * 28, font(400, 18), C.boneD));
+      });
+      fy += 32 + Math.max(...bl.map(l => l.length)) * 28 + 20;
+      if(draw){ ctx.strokeStyle = 'rgba(239,232,216,.18)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, fy); ctx.lineTo(R, fy); ctx.stroke(); }
+      fy += 38;
+      txt('واتساب / هاتف: ' + STORE_INFO.phone, R, fy, font(600, 19), C.bone);
+      if(draw){                                          // keep "@handle" left-to-right inside the Arabic line
+        ctx.font = font(600, 19); ctx.fillStyle = C.bone;
+        ctx.direction = 'ltr'; ctx.textAlign = 'left'; ctx.fillText(STORE_INFO.instagram, P, fy);
+        const w = ctx.measureText(STORE_INFO.instagram).width;
+        ctx.direction = 'rtl'; ctx.fillText('إنستغرام:', P + w + 10, fy);
+      }
+      fy += 34; txt('فيسبوك: ' + STORE_INFO.facebook, R, fy, font(600, 19), C.bone);
+      fy += 46; txt('شكراً لتسوّقكم من عطور الريحان', W/2, fy, font(700, 26, 'Amiri'), '#E9C766', 'center');
+      return top + fh;
+    };
+    const H = Math.ceil(paint(false));
+    cv.width = W * S; cv.height = H * S;
+    ctx.scale(S, S); ctx.direction = 'rtl';
+    ctx.fillStyle = C.paper; ctx.fillRect(0, 0, W, H);
+    paint(true);
+    return await new Promise((res, rej) => cv.toBlob(b => b ? res(b) : rej(new Error('png')), 'image/png'));
+  }
 
   /* =====================================================
      FAVORITES & BRAND MENU
