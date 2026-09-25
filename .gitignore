@@ -12,6 +12,7 @@ package-lock.json
 server/data/users.json
 server/data/orders.json
 server/data/ledger.json
+server/data/site-settings.json
 
 # ---- email account + app password (set from the admin panel, tab "البريد") ----
 server/data/mail-settings.json
