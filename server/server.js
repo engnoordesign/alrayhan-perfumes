@@ -1045,8 +1045,28 @@ app.post('/api/admin/ads/import-brands', requireAdmin, (req, res) => {
 });
 
 /* public: only the ads switched on */
+/* one switch for the whole ads banner (admin → الإعلانات). When it's off,
+   customers get no ads at all; the ads themselves are kept for later. */
+function adsEnabled() {
+  return readTable('site-settings', {}).adsEnabled !== false;
+}
+
 app.get('/api/ads', (req, res) => {
+  if (!adsEnabled()) return res.json([]);
   res.json(sortedAds().filter(a => a.active !== false));
+});
+
+app.get('/api/admin/ads-settings', requireAdmin, (req, res) => {
+  res.json({ enabled: adsEnabled() });
+});
+
+app.put('/api/admin/ads-settings', requireAdmin, (req, res) => {
+  const enabled = (req.body || {}).enabled;
+  if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'قيمة غير صحيحة' });
+  const settings = readTable('site-settings', {});
+  settings.adsEnabled = enabled;
+  writeTable('site-settings', settings);
+  res.json({ enabled });
 });
 
 app.get('/api/admin/ads', requireAdmin, (req, res) => {
