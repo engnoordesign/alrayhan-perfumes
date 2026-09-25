@@ -966,6 +966,12 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
 
   /* ---------- ACCOUNT: login / sign-up extras ---------- */
   .auth-box{ max-height:92vh; overflow-y:auto; }
+  .soon-box{ text-align:center; }
+  .soon-badge{ display:inline-block; margin:6px auto 14px; padding:5px 16px; border-radius:20px; background:var(--gold); color:var(--black);
+    font-weight:700; font-size:13px; letter-spacing:.5px; }
+  html[data-theme="light"] .soon-badge{ color:#FFFDF7; }
+  .soon-note{ color:var(--bone); font-size:13px; line-height:1.9; margin:-8px 0 20px; }
+  .soon-wa{ display:block; text-align:center; text-decoration:none; }
   .auth-hint{ font-size:10.5px; color:var(--bone-dim); opacity:.85; margin-inline-start:6px; }
   .auth-hint.ok{ color:var(--leaf); opacity:1; }
   .auth-hint.bad{ color:#C0524B; opacity:1; }
@@ -1175,7 +1181,20 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   </form>
 </div>
 
-<!-- AUTH MODAL (demo — no real SMS/OAuth) -->
+<!-- ACCOUNTS COMING SOON (shown while ACCOUNTS_ENABLED = false) -->
+<div class="auth-overlay" id="soonOverlay" role="dialog" aria-modal="true" aria-labelledby="soonTitle">
+  <div class="auth-box soon-box">
+    <button class="light-close" id="soonCloseBtn" aria-label="إغلاق" type="button" style="position:absolute; top:12px; left:12px;">×</button>
+    <div class="soon-badge">قريباً</div>
+    <h3 id="soonTitle">حسابات عطور الريحان</h3>
+    <p class="auth-sub">نعمل على تجهيز الحسابات الشخصية: متابعة طلباتك، حفظ المفضلة على كل أجهزتك، والطلب المسبق للعطور غير المتوفرة.</p>
+    <p class="soon-note">إلى ذلك الحين يمكنك الطلب مباشرة كضيف بدون حساب، وتبقى مفضلتك محفوظة على هذا الجهاز.</p>
+    <a class="btn solid auth-submit soon-wa" href="https://wa.me/9647718302002" target="_blank" rel="noopener">تواصل معنا على واتساب</a>
+    <button class="auth-back" id="soonOkBtn" type="button">حسناً</button>
+  </div>
+</div>
+
+<!-- AUTH MODAL (kept for when accounts launch) -->
 <div class="auth-overlay" id="authOverlay">
   <div class="auth-box">
     <button class="light-close" id="authCloseBtn" aria-label="إغلاق" type="button" style="position:absolute; top:12px; left:12px;">×</button>
@@ -2064,6 +2083,18 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
      Phone codes are shown on-screen because this local dev
      server has no SMS provider wired up (see server.js).
   ===================================================== */
+  /* Accounts are switched OFF on the storefront until they're ready to launch.
+     Everything (login, sign-up, profile, pre-orders) and the whole backend is
+     kept as-is: set this to true to bring the feature back. */
+  const ACCOUNTS_ENABLED = false;
+  const soonOverlay = document.getElementById('soonOverlay');
+  function openAccountsSoon(){ soonOverlay.classList.add('open'); }
+  function closeAccountsSoon(){ soonOverlay.classList.remove('open'); }
+  document.getElementById('soonCloseBtn').addEventListener('click', closeAccountsSoon);
+  document.getElementById('soonOkBtn').addEventListener('click', closeAccountsSoon);
+  soonOverlay.addEventListener('click', (e)=>{ if(e.target === soonOverlay) closeAccountsSoon(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeAccountsSoon(); });
+
   const USER_TOKEN_KEY = 'alrayhan_user_token';
   function getUserToken(){ try{ return localStorage.getItem(USER_TOKEN_KEY); }catch(e){ return null; } }
   function setUserToken(t){ try{ t ? localStorage.setItem(USER_TOKEN_KEY, t) : localStorage.removeItem(USER_TOKEN_KEY); }catch(e){} }
@@ -2139,6 +2170,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   }
 
   function openAuth(){
+    if(!ACCOUNTS_ENABLED){ openAccountsSoon(); return; }
     setAuthMethod('phone');
     ['loginId','loginPw','suUser','suPw','suPw2','suContact'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
     ['loginError','signupError'].forEach(id=>{ document.getElementById(id).textContent=''; });
@@ -2220,6 +2252,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
 
   /* ---- profile panel ---- */
   function openProfilePanel(){
+    if(!ACCOUNTS_ENABLED){ openAccountsSoon(); return; }
     renderProfile();
     renderProfileLists();
     loadProfileData();
@@ -3247,7 +3280,7 @@ new MutationObserver(()=>{ heroIndex = 0; renderHeroSlides(); restartHeroTimer()
     renderCart();
 
     // if a user was already logged in on this device, refresh their profile from the server
-    if(getUserToken()){
+    if(ACCOUNTS_ENABLED && getUserToken()){
       try{ await refreshCurrentUser(); await mergeFavoritesAfterLogin(); }catch(e){}
       updateProfileButton();
     }
