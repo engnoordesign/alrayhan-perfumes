@@ -257,6 +257,15 @@
   .slide-content .eyebrow{ margin-bottom:14px; }
   .slide-title{ font-family:var(--display); font-weight:700; font-size:clamp(28px,5vw,46px); color:var(--bone); margin-bottom:12px; line-height:1.3; }
   .slide-desc{ color:var(--bone-dim); font-size:15px; line-height:1.85; margin-bottom:26px; max-width:46ch; }
+  /* phones: a shorter banner so the products (and the search) show up sooner */
+  @media (max-width:640px){
+    .hero{ height:clamp(430px, 62svh, 540px); padding-top:62px; }
+    .slide-icon{ width:74px; height:74px; margin-bottom:14px; }
+    .slide-content .eyebrow{ margin-bottom:8px; }
+    .slide-title{ font-size:28px; margin-bottom:8px; }
+    .slide-desc{ font-size:13.5px; line-height:1.75; margin-bottom:18px; }
+    .hero-progress-dots{ bottom:16px !important; }
+  }
 
   .hero-progress-dots{
     position:absolute; bottom:26px; left:50%; transform:translateX(-50%); z-index:5;
@@ -394,6 +403,54 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   .shop{ background:var(--panel); border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
 
   .filter-row{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:52px; }
+
+  /* ---------- PRODUCT SEARCH (sticks under the header while browsing) ---------- */
+  .shop-search{
+    position:sticky; top:74px; z-index:40; margin:0 0 22px; padding:10px 0;
+    background:var(--panel);
+  }
+  .shop-search-box{
+    display:flex; align-items:center; gap:10px; max-width:620px;
+    border:1px solid var(--line); border-radius:30px; background:var(--black);
+    padding:0 16px; transition:border-color .2s ease, box-shadow .2s ease;
+  }
+  html[data-theme="light"] .shop-search-box{ background:#fff; }
+  .shop-search-box:focus-within{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,162,39,.16); }
+  .shop-search-box > svg{ width:18px; height:18px; flex:none; color:var(--gold-bright); }
+  .shop-search-box input{
+    all:unset; flex:1; min-width:0; height:46px; font-family:var(--body); font-size:15px; color:var(--bone);
+  }
+  .shop-search-box input::placeholder{ color:var(--bone-dim); opacity:.8; }
+  .shop-search-box input::-webkit-search-cancel-button{ display:none; }
+  .search-clear{
+    all:unset; cursor:pointer; width:30px; height:30px; flex:none; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--bone-dim);
+  }
+  .search-clear:hover{ background:var(--panel-2); color:var(--bone); }
+  .search-clear[hidden]{ display:none; }
+  .search-info{ margin-top:8px; font-size:13px; color:var(--bone-dim); }
+  .search-info b{ color:var(--gold-bright); }
+  .search-info[hidden], .search-empty[hidden]{ display:none; }
+  .search-empty{
+    text-align:center; padding:46px 20px; margin-bottom:40px; border:1px dashed var(--line); border-radius:14px;
+    color:var(--bone-dim); font-size:15px; line-height:1.9;
+  }
+  .search-empty b{ color:var(--bone); }
+  .search-empty a{ color:var(--gold-bright); font-weight:600; }
+  .card.search-hide, .brand-group.search-hide{ display:none !important; }
+  .filter-row.searching{ opacity:.45; }
+  #productGroups{ scroll-margin-top:190px; }
+  @media (max-width:640px){
+    .shop-search{ top:58px; margin-bottom:16px; padding:8px 0; }
+    .shop-search-box input{ height:44px; font-size:16px; }   /* 16px stops iPhone from zooming in */
+    .filter-row.searching{ display:none; }
+    #productGroups{ scroll-margin-top:150px; }
+    .brand-group{ scroll-margin-top:136px; }
+    /* brand pills: one row that slides sideways instead of five rows */
+    .filter-row{ flex-wrap:nowrap; overflow-x:auto; margin:0 -32px 30px; padding:2px 32px 8px; scrollbar-width:none; overscroll-behavior-x:contain; }
+    .filter-row::-webkit-scrollbar{ display:none; }
+    .filter-row .filter-pill{ flex:none; white-space:nowrap; }
+  }
   .filter-pill{
     all:unset; cursor:pointer;
     font-size:13px; font-weight:600; color:var(--bone-dim);
@@ -404,7 +461,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   .filter-pill:hover{ color:var(--bone); border-color:var(--bone-dim); }
   .filter-pill.active{ background:var(--gold); color:var(--black); border-color:var(--gold); }
 
-  .brand-group{ margin-bottom:56px; scroll-margin-top:96px; }
+  .brand-group{ margin-bottom:56px; scroll-margin-top:170px; }
   #collection{ scroll-margin-top:72px; }
   .brand-group:last-child{ margin-bottom:0; }
   .brand-group-head{ display:flex; align-items:center; gap:14px; margin-bottom:22px; padding-bottom:14px; border-bottom:1px solid var(--line); }
@@ -1213,6 +1270,9 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       <li><a href="#contact">تواصل معنا</a></li>
     </ul>
     <div style="display:flex; align-items:center; gap:14px;">
+      <button class="cart-btn" id="searchToggleBtn" type="button" aria-label="ابحث عن عطر" title="ابحث عن عطر">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      </button>
       <button class="cart-btn music-btn" id="musicToggleBtn" type="button" aria-pressed="false" aria-label="تشغيل موسيقى هادئة" title="تشغيل موسيقى هادئة">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 17.5V5.5l11-2v12"/><path d="M9 9.5l11-2"/><circle cx="6.5" cy="17.5" r="2.5" fill="currentColor"/><circle cx="17.5" cy="15.5" r="2.5" fill="currentColor"/></svg>
       </button>
@@ -1460,7 +1520,16 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
         <p>مجموعة الماس من آي براق، خطوط عساف وأرماف وأفنان 9 ورصاصي هواس وميزون الحمبرا ولطافة بولد ونايت دو باريس، إضافة إلى العطور العالمية الأصلية. اضغط على أي تصنيف لتصفية المجموعة.</p>
       </div>
 
+      <div class="shop-search" role="search">
+        <label class="shop-search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input type="search" id="productSearch" placeholder="ابحث عن عطر أو خط… مثال: بلو دايموند" autocomplete="off" enterkeyhint="search" aria-label="ابحث في العطور">
+          <button class="search-clear" id="productSearchClear" type="button" aria-label="مسح البحث" hidden>×</button>
+        </label>
+        <div class="search-info" id="searchInfo" aria-live="polite" hidden></div>
+      </div>
       <div class="filter-row" id="filterRow"></div>
+      <div class="search-empty" id="searchEmpty" hidden></div>
       <div id="productGroups"></div>
 
       <div class="price-note">
@@ -1907,6 +1976,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       `;
       groupsWrap.appendChild(group);
     });
+    if(searchInput && searchInput.value.trim()) applySearch();
   }
 
   function renderFilterPills(){
@@ -1915,7 +1985,10 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
     const filters = [{ key:'all', label:'الكل' }].concat(brandOrder.map(b=>({key:b, label:brandMeta[b].label})));
     filterRow.innerHTML = filters.map(f=>`<button class="filter-pill${f.key===activeKey?' active':''}" data-filter="${f.key}">${f.label}</button>`).join('');
     filterRow.querySelectorAll('.filter-pill[data-filter]').forEach(btn=>{
-      btn.addEventListener('click', ()=> goToGroup(btn.dataset.filter));
+      btn.addEventListener('click', ()=>{
+        goToGroup(btn.dataset.filter);
+        if(filterRow.scrollWidth > filterRow.clientWidth) btn.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+      });
     });
   }
 
@@ -1926,6 +1999,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   /* smooth-scrolls to a brand group ("all" → the top of the collection) */
   let pillLockUntil = 0;
   function goToGroup(key){
+    if(searchInput.value.trim()) clearSearch();
     const target = key && key !== 'all' ? document.getElementById('group-' + key) : null;
     setActivePill(target ? key : 'all');
     pillLockUntil = Date.now() + 900; // keep the tapped pill highlighted while the page scrolls
@@ -1950,6 +2024,87 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       setActivePill(current);
     });
   }, { passive:true });
+
+  /* ---------------- product search ----------------
+     Works on Arabic and English names, brand names and scent notes.
+     Arabic spelling is normalised (أ/إ/آ → ا, ة → ه, ى → ي, no tashkeel)
+     and one typo is forgiven in longer words, so «دايمند» still finds
+     «دايموند». */
+  const searchInput = document.getElementById('productSearch');
+  const searchClear = document.getElementById('productSearchClear');
+  const searchInfo = document.getElementById('searchInfo');
+  const searchEmpty = document.getElementById('searchEmpty');
+  function normAr(s){
+    return String(s || '').toLowerCase()
+      .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+      .replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')
+      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+      .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  }
+  function nearWord(q, w){                 // one letter added, missing or changed
+    if(Math.abs(q.length - w.length) > 1) return false;
+    let i = 0, j = 0, edits = 0;
+    while(i < q.length && j < w.length){
+      if(q[i] === w[j]){ i++; j++; continue; }
+      if(++edits > 1) return false;
+      if(q.length > w.length) i++; else if(q.length < w.length) j++; else { i++; j++; }
+    }
+    return edits + (q.length - i) + (w.length - j) <= 1;
+  }
+  function productIndex(p){
+    const meta = brandMeta[p.brand] || {};
+    const text = normAr([p.ar, p.name, p.en, meta.label, meta.tag, p.brand, p.notes, p.descriptor, p.vol].join(' '));
+    return { text, words: text.split(' ') };
+  }
+  function matches(idx, tokens){
+    return tokens.every(t => idx.text.includes(t) ||
+      (t.length >= 4 && idx.words.some(w => nearWord(t, w) || (w.length > t.length && nearWord(t, w.slice(0, t.length + 1))))));
+  }
+  let searchTimer = 0;
+  function applySearch(){
+    const raw = searchInput.value.trim();
+    const tokens = normAr(raw).split(' ').filter(Boolean);
+    const active = tokens.length > 0;
+    searchClear.hidden = !raw;
+    filterRow.classList.toggle('searching', active);
+    let shown = 0;
+    groupsWrap.querySelectorAll('.brand-group').forEach(g => {
+      let inGroup = 0;
+      g.querySelectorAll('.card').forEach(card => {
+        const p = products.find(x => x.id === card.dataset.id);
+        const ok = !active || (p && matches(productIndex(p), tokens));
+        card.classList.toggle('search-hide', !ok);
+        if(ok) inGroup++;
+      });
+      g.classList.toggle('search-hide', inGroup === 0);
+      shown += inGroup;
+    });
+    if(!active){ searchInfo.hidden = true; searchEmpty.hidden = true; return; }
+    const safe = raw.replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
+    searchInfo.hidden = shown === 0;
+    const count = shown === 1 ? 'نتيجة واحدة' : shown === 2 ? 'نتيجتان' : `<b>${shown}</b> ${shown <= 10 ? 'نتائج' : 'نتيجة'}`;
+    searchInfo.innerHTML = `${count} لـ «${safe}»`;
+    searchEmpty.hidden = shown !== 0;
+    if(!shown) searchEmpty.innerHTML = `لم نجد عطراً باسم <b>«${safe}»</b>.<br>جرّب كتابة الاسم بطريقة أخرى، أو <a href="https://wa.me/9647718302002" target="_blank" rel="noopener">اسألنا على واتساب</a> وسنبحث لك عنه.`;
+  }
+  function scrollToResults(){
+    const top = groupsWrap.getBoundingClientRect().top;
+    if(top < 120 || top > window.innerHeight * 0.8) groupsWrap.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+  searchInput.addEventListener('input', ()=>{
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(()=>{ applySearch(); if(searchInput.value.trim()) scrollToResults(); }, 140);
+  });
+  searchInput.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); applySearch(); scrollToResults(); searchInput.blur(); }
+    if(e.key === 'Escape'){ clearSearch(); }
+  });
+  function clearSearch(){ searchInput.value = ''; applySearch(); }
+  searchClear.addEventListener('click', ()=>{ clearSearch(); searchInput.focus(); });
+  document.getElementById('searchToggleBtn').addEventListener('click', ()=>{
+    document.getElementById('collection').scrollIntoView({ behavior:'smooth', block:'start' });
+    setTimeout(()=> searchInput.focus({ preventScroll:true }), 450);
+  });
 
   renderFilterPills();
   renderGroups();
