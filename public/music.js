@@ -504,5 +504,44 @@
     if (!on) btn.title = 'تشغيل موسيقى هادئة';
   }
 
-  btn.addEventListener('click', () => (playing ? stop() : start()));
+  /* ---------------- on by default ----------------
+     The music is on unless the visitor switched it off before (remembered
+     on their device). Browsers only allow sound after the visitor has
+     touched the page, so until then the button shows "on" and the music
+     starts softly with the first tap, click or key press anywhere. */
+  const PREF_KEY = 'alrayhan_music';
+  const savePref = v => { try { localStorage.setItem(PREF_KEY, v); } catch (e) {} };
+  let wantsMusic = true;
+  try { wantsMusic = localStorage.getItem(PREF_KEY) !== 'off'; } catch (e) {}
+  let waiting = false, justUnlocked = false;
+  const GESTURES = ['pointerdown', 'keydown', 'touchend'];
+
+  function unlock() {
+    GESTURES.forEach(g => window.removeEventListener(g, unlock, true));
+    if (!waiting) return;
+    waiting = false;
+    justUnlocked = true; setTimeout(() => { justUnlocked = false; }, 600);
+    start();
+  }
+  function waitForGesture() {
+    waiting = true;
+    setUi(true);
+    GESTURES.forEach(g => window.addEventListener(g, unlock, true));
+  }
+
+  btn.addEventListener('click', () => {
+    if (justUnlocked) return;                  // this same tap already started the music
+    if (waiting) { unlock(); savePref('on'); return; }
+    if (playing) { stop(); savePref('off'); } else { start(); savePref('on'); }
+  });
+
+  if (wantsMusic) {
+    // try right away (works when the browser already allows sound); otherwise wait for the first touch
+    try {
+      const probe = new AC();
+      const allowed = probe.state === 'running';
+      probe.close && probe.close();
+      if (allowed) start(); else waitForGesture();
+    } catch (e) { waitForGesture(); }
+  }
 })();
