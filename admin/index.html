@@ -182,6 +182,8 @@
   .empty{ text-align:center; color:var(--bone-dim); font-size:13.5px; padding:50px 20px; }
 
   /* ---------- ORDER CARDS ---------- */
+  .order-search-info{ font-size:13px; color:var(--bone-dim); margin:-8px 0 16px; }
+  .order-search-info .pill{ font-size:11px; margin-inline-start:4px; }
   .order{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px; margin-bottom:14px; }
   .order-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
   .order-top h4{ font-family:var(--display); font-size:17px; color:var(--bone); }
@@ -483,6 +485,9 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
         </div>
         <button class="btn ghost" id="refreshOrdersBtn" type="button">تحديث</button>
       </div>
+      <input type="search" class="search" id="orderSearch" dir="auto" autocomplete="off"
+        placeholder="ابحث برقم الطلب (كاملاً أو جزءاً منه)، أو اسم الزبون، أو رقم هاتفه..." aria-label="البحث في الطلبات">
+      <p class="order-search-info" id="orderSearchInfo" hidden></p>
       <div id="orderList"></div>
       <h3 style="font-family:var(--display); font-size:19px; color:var(--gold-bright); margin:34px 0 12px;">الطلبات المسبقة (عطور غير متوفرة)</h3>
       <div id="preorderList"></div>
@@ -1746,10 +1751,32 @@ function stockNote(it, status){
   return ` <small class="stock-note ok">في المخزن ${s.inStock}</small>`;
 }
 
+/* search: order number (full, or any part, with or without "order_" / "#"),
+   customer name or phone */
+function normSearch(v){ return String(v || '').toLowerCase().replace(/^#/, '').replace(/^order_/, '').replace(/\s+/g, ''); }
+function orderMatches(o, q){
+  if(!q) return true;
+  const digits = q.replace(/\D/g, '');
+  return normSearch(o.id).includes(q) ||
+    normSearch(o.name).includes(q) ||
+    (digits.length >= 4 && String(o.phone || '').replace(/\D/g, '').includes(digits));
+}
+$('#orderSearch').addEventListener('input', renderOrders);
+
 function renderOrders(){
   const wrap = $('#orderList');
-  if(!orders.length){ wrap.innerHTML = '<div class="empty">لا توجد طلبات بعد.</div>'; return; }
-  wrap.innerHTML = orders.map(o=>{
+  const info = $('#orderSearchInfo');
+  const q = normSearch($('#orderSearch').value);
+  if(!orders.length){ info.hidden = true; wrap.innerHTML = '<div class="empty">لا توجد طلبات بعد.</div>'; return; }
+  const list = orders.filter(o => orderMatches(o, q));
+  info.hidden = !q;
+  if(q){
+    info.innerHTML = !list.length ? 'لا يوجد طلب بهذا الرقم أو الاسم.'
+      : list.length === 1 ? `طلب واحد — الحالة: <span class="pill ${esc(list[0].status || 'new')}">${STATUS_LABELS[list[0].status || 'new']}</span>`
+      : `${list.length} طلبات مطابقة`;
+  }
+  if(!list.length){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = list.map(o=>{
     const status = o.status || 'new';
     const place = o.deliveryMethod === 'pickup'
       ? `${DELIVERY_LABELS.pickup} — ${esc(o.branch==='المثنى'?'حي المثنى':'حي البلديات')}`
