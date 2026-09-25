@@ -9,7 +9,7 @@
     "effect": "brand",
     "theme": "both",
     "color": "#C9A227",
-    "active": true,
+    "active": false,
     "createdAt": 1790195620205,
     "order": 0
   },
@@ -23,7 +23,7 @@
     "effect": "brand",
     "theme": "both",
     "color": "#8B2E3C",
-    "active": true,
+    "active": false,
     "createdAt": 1790195620205,
     "order": 1
   },
@@ -37,7 +37,7 @@
     "effect": "brand",
     "theme": "both",
     "color": "#3E6B8A",
-    "active": true,
+    "active": false,
     "createdAt": 1790195620205,
     "order": 2
   },
@@ -51,7 +51,7 @@
     "effect": "brand",
     "theme": "both",
     "color": "#6B4A8A",
-    "active": true,
+    "active": false,
     "createdAt": 1790195620205,
     "order": 3
   },
@@ -65,7 +65,7 @@
     "effect": "brand",
     "theme": "both",
     "color": "#2E8B7A",
-    "active": true,
+    "active": false,
     "createdAt": 1790195620205,
     "order": 4
   },
@@ -79,7 +79,7 @@
     "effect": "brand",
     "theme": "both",
     "color": "#B87A6B",
-    "active": true,
+    "active": false,
     "createdAt": 1790195620205,
     "order": 5
   },
@@ -93,7 +93,7 @@
     "effect": "brand",
     "theme": "both",
     "color": "#4A5A3C",
-    "active": true,
+    "active": false,
     "createdAt": 1790195620205,
     "order": 6
   },
@@ -107,7 +107,7 @@
     "effect": "brand",
     "theme": "both",
     "color": "#7A3B52",
-    "active": true,
+    "active": false,
     "createdAt": 1790195620205,
     "order": 7
   },
@@ -121,7 +121,7 @@
     "effect": "brand",
     "theme": "both",
     "color": "#D98C3B",
-    "active": true,
+    "active": false,
     "createdAt": 1790195620205,
     "order": 8
   },
@@ -135,7 +135,7 @@
     "effect": "brand",
     "theme": "both",
     "color": "#6E6A62",
-    "active": true,
+    "active": false,
     "createdAt": 1790195620205,
     "order": 9
   },
@@ -149,7 +149,7 @@
     "effect": "brand",
     "theme": "both",
     "color": "#C9A227",
-    "active": true,
+    "active": false,
     "createdAt": 1790195620206,
     "order": 10
   }

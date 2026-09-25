@@ -1,9 +1,9 @@
 [
   {
     "key": "ibraq",
-    "label": "آي براق — مجموعة الماس",
+    "label": "ابراق -ibraq",
     "tag": "Ibraq Diamond Collection",
-    "color": "#C9A227",
+    "color": "#c9a227",
     "order": 0,
     "custom": false
   },
@@ -25,41 +25,41 @@
   },
   {
     "key": "afnan",
-    "label": "أفنان 9 Afnan",
-    "tag": "9pm · 9am",
-    "color": "#6B4A8A",
+    "label": "أفنان -Afnan",
+    "tag": "",
+    "color": "#6b4a8a",
     "order": 3,
     "custom": false
   },
   {
     "key": "hawas",
-    "label": "رصاصي هواس Rasasi Hawas",
+    "label": "الرصاصي-Risasi",
     "tag": "",
-    "color": "#2E8B7A",
+    "color": "#2e8b7a",
     "order": 4,
     "custom": false
   },
   {
     "key": "alhambra",
-    "label": "ميزون الحمبرا Maison Alhambra",
+    "label": "ميسون الهمبرا-Maison Alhambra",
     "tag": "",
-    "color": "#B87A6B",
+    "color": "#b87a6b",
     "order": 5,
     "custom": false
   },
   {
     "key": "bold",
-    "label": "لطافة بولد Lattafa Bold",
+    "label": "لطافة-latafa",
     "tag": "Intense · Hard · Green",
-    "color": "#4A5A3C",
+    "color": "#4a5a3c",
     "order": 6,
     "custom": false
   },
   {
     "key": "nightdeparis",
-    "label": "نايت دو باريس Night De Paris",
+    "label": "لوريانتل باريس-loriantel paris",
     "tag": "",
-    "color": "#7A3B52",
+    "color": "#7a3b52",
     "order": 7,
     "custom": false
   },
@@ -81,9 +81,9 @@
   },
   {
     "key": "designer",
-    "label": "عطور عالمية أصلية",
+    "label": "عطور عالمية - Brands",
     "tag": "Designer Originals",
-    "color": "#C9A227",
+    "color": "#c9a227",
     "order": 10,
     "custom": false
   }
