@@ -216,6 +216,44 @@
   .field-row{ display:flex; gap:12px; flex-wrap:wrap; }
 
   /* mail settings */
+  .gear-wrap{ position:relative; }
+  .gear-btn.active{ border-color:var(--gold); color:var(--gold-bright); }
+  .gear-menu{ position:absolute; top:calc(100% + 8px); left:0; min-width:170px; z-index:60; display:none;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:6px; box-shadow:0 12px 30px rgba(0,0,0,.35); }
+  .gear-menu.open{ display:block; }
+  .gear-menu button{ all:unset; box-sizing:border-box; display:block; width:100%; padding:10px 14px; border-radius:7px; cursor:pointer; font-size:13px; color:var(--bone); }
+  .gear-menu button:hover, .gear-menu button.active{ background:var(--panel-2); color:var(--gold-bright); }
+  .gear-menu button:focus-visible{ outline:2px solid var(--gold); }
+  .tab .badge{ display:inline-block; min-width:18px; padding:1px 6px; margin-inline-start:6px; border-radius:10px; background:var(--red); color:#fff; font-size:10.5px; font-weight:700; line-height:1.5; text-align:center; }
+  .tab .badge[hidden]{ display:none; }
+  .order.is-new{ border-color:var(--gold); border-inline-start:4px solid var(--gold); }
+  .order.stock-bad{ border-inline-start-color:var(--red); }
+  .stock-note{ display:inline-block; margin-inline-start:8px; font-size:11.5px; color:var(--bone-dim); }
+  .stock-note.ok{ color:var(--leaf); }
+  .stock-note.warn{ color:var(--amber); }
+  .stock-note.bad{ color:#E4948E; }
+  .acct-toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .seg{ display:flex; gap:4px; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:4px; flex-wrap:wrap; }
+  .seg button{ all:unset; cursor:pointer; padding:7px 13px; border-radius:7px; font-size:12.5px; font-weight:600; color:var(--bone-dim); }
+  .seg button.active{ background:var(--gold); color:var(--black); }
+  .seg button:focus-visible{ outline:2px solid var(--gold); }
+  .acct-stats .n{ font-size:22px; font-variant-numeric:tabular-nums; }
+  .stat .sub{ display:block; font-size:11px; color:var(--bone-dim); margin-top:6px; }
+  .acct-note{ color:var(--amber); font-size:12.5px; margin:-18px 0 22px; }
+  .acct-grid{ display:grid; grid-template-columns:1.5fr 1fr; gap:18px; align-items:start; }
+  @media (max-width:900px){ .acct-grid{ grid-template-columns:1fr; } }
+  .acct-card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; margin-bottom:18px; }
+  .acct-card h3{ font-family:var(--display); font-size:16px; color:var(--gold-bright); margin-bottom:12px; }
+  .acct-card .bar-row .lbl{ width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .acct-card .bar-row .acct-n{ width:auto; min-width:110px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .acct-scroll{ max-height:420px; overflow:auto; }
+  table.acct{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.acct th{ text-align:start; font-weight:600; color:var(--bone-dim); padding:8px 6px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--panel); }
+  table.acct td{ padding:8px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  table.acct .num{ text-align:end; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  table.acct .muted, .acct-card small.muted{ color:var(--bone-dim); }
+  table.acct tr.reversed td{ text-decoration:line-through; opacity:.55; }
+  html[data-theme="light"] .gear-menu{ box-shadow:0 12px 30px rgba(60,40,10,.15); }
   .sec-warn{ display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; padding:10px 16px;
     background:rgba(192,82,75,0.15); border-bottom:1px solid rgba(192,82,75,0.5); color:#E4948E; font-size:13px; text-align:center; }
   .sec-warn[hidden]{ display:none; }
@@ -368,12 +406,20 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       <button class="tab active" data-view="products" type="button">المنتجات</button>
       <button class="tab" data-view="brands" type="button">الخطوط</button>
       <button class="tab" data-view="ads" type="button">الإعلانات</button>
-      <button class="tab" data-view="orders" type="button">الطلبات</button>
-      <button class="tab" data-view="stats" type="button">الإحصائيات</button>
-      <button class="tab" data-view="mail" type="button">البريد</button>
-      <button class="tab" data-view="security" type="button">الأمان</button>
+      <button class="tab" data-view="orders" type="button">الطلبات<span class="badge" id="newOrdersBadge" hidden></span></button>
+      <button class="tab" data-view="accounting" type="button">الحسابات</button>
     </div>
     <div style="display:flex; gap:8px;">
+      <div class="gear-wrap">
+        <button class="btn ghost sm theme-btn gear-btn" id="gearBtn" type="button" title="الإحصائيات والإعدادات" aria-label="الإحصائيات والإعدادات" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+        <div class="gear-menu" id="gearMenu" role="menu">
+          <button type="button" role="menuitem" data-view="stats">الإحصائيات</button>
+          <button type="button" role="menuitem" data-view="mail">البريد</button>
+          <button type="button" role="menuitem" data-view="security">الأمان</button>
+        </div>
+      </div>
       <button class="btn ghost sm theme-btn" id="themeBtn" type="button" title="الوضع الفاتح / الداكن" aria-label="تبديل الوضع الفاتح والداكن">
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
@@ -496,6 +542,37 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       </div>
     </div>
 
+    <!-- ACCOUNTING -->
+    <div class="view" id="view-accounting">
+      <div class="view-head">
+        <div>
+          <h2>الحسابات</h2>
+          <div class="sub">تُسجَّل المبيعات ويُخصم من المخزن فقط عند تغيير حالة الطلب إلى «تم التسليم».</div>
+        </div>
+        <div class="acct-toolbar">
+          <div class="seg" id="acctRange" role="group" aria-label="الفترة">
+            <button type="button" data-range="today">اليوم</button>
+            <button type="button" data-range="week">آخر 7 أيام</button>
+            <button type="button" data-range="month" class="active">هذا الشهر</button>
+            <button type="button" data-range="all">كل الوقت</button>
+          </div>
+          <button class="btn ghost sm" id="acctCsvBtn" type="button">تنزيل للإكسل (CSV)</button>
+        </div>
+      </div>
+      <div class="stat-grid acct-stats" id="acctStats"></div>
+      <p class="acct-note" id="acctNote" hidden></p>
+      <div class="acct-grid">
+        <div>
+          <div class="acct-card"><h3>الأكثر مبيعاً</h3><div id="acctTop"></div></div>
+          <div class="acct-card"><h3>سجل المبيعات</h3><div id="acctLedger"></div></div>
+        </div>
+        <div>
+          <div class="acct-card"><h3>حسب طريقة الدفع</h3><div id="acctPay"></div></div>
+          <div class="acct-card"><h3>المخزن</h3><div id="acctStock"></div></div>
+        </div>
+      </div>
+    </div>
+
     <!-- SECURITY -->
     <div class="view" id="view-security">
       <div class="view-head">
@@ -565,6 +642,10 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
         <div class="field">
           <label>الكمية</label>
           <input type="text" name="qty" inputmode="numeric" placeholder="∞">
+        </div>
+        <div class="field">
+          <label>سعر الشراء (للحسابات)</label>
+          <input type="text" name="cost" inputmode="numeric" placeholder="اختياري">
         </div>
       </div>
       <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:6px;">
@@ -808,10 +889,106 @@ function doLogout(){
 }
 $('#logoutBtn').addEventListener('click', doLogout);
 
+let lastNewCount = null;
+function setNewBadge(n){
+  const b = $('#newOrdersBadge');
+  b.hidden = !n;
+  b.textContent = n;
+  if(lastNewCount !== null && n > lastNewCount) toast(`🛎️ وصل طلب جديد (${n} بانتظارك)`);
+  lastNewCount = n;
+}
+async function refreshNewBadge(){
+  if(!token) return;
+  try{ setNewBadge((await api('/api/admin/orders/new-count')).count); }catch(e){}
+}
+setInterval(()=>{ if(token && document.visibilityState === 'visible') refreshNewBadge(); }, 60000);
+
+/* ---------------- accounting ---------------- */
+let acctRange = 'month';
+function rangeBounds(r){
+  const now = new Date(), start = new Date(now);
+  start.setHours(0,0,0,0);
+  if(r === 'today') return { from: start.getTime(), to: now.getTime() };
+  if(r === 'week'){ start.setDate(start.getDate() - 6); return { from: start.getTime(), to: now.getTime() }; }
+  if(r === 'month'){ start.setDate(1); return { from: start.getTime(), to: now.getTime() }; }
+  return { from: 0, to: 0 };
+}
+function rangeQuery(){ const b = rangeBounds(acctRange); return `?from=${b.from}&to=${b.to}`; }
+
+async function loadAccounting(){
+  let a;
+  try{ a = await api('/api/admin/accounting' + rangeQuery()); }catch(e){ toast('تعذر تحميل الحسابات'); return; }
+  const pct = a.margin === null ? '—' : Math.round(a.margin * 100) + '%';
+  $('#acctStats').innerHTML = `
+    <div class="stat"><span class="n">${fmtIQD(a.sales)}</span><span class="l">المبيعات (بدون التوصيل)</span><span class="sub">${a.orders} طلب · ${a.units} قطعة</span></div>
+    <div class="stat"><span class="n">${fmtIQD(a.profit)}</span><span class="l">صافي الربح</span><span class="sub">هامش ${pct} · الكلفة ${fmtIQD(a.cost)}</span></div>
+    <div class="stat"><span class="n">${fmtIQD(a.collected)}</span><span class="l">المبلغ المستلم</span><span class="sub">منها توصيل ${fmtIQD(a.deliveryFees)}</span></div>
+    <div class="stat"><span class="n">${fmtIQD(a.avgOrder)}</span><span class="l">متوسط الطلب</span><span class="sub">${a.cancelled} طلب ملغى في الفترة</span></div>
+    <div class="stat"><span class="n">${fmtIQD(a.pending.value)}</span><span class="l">طلبات مفتوحة لم تُسلَّم</span><span class="sub">${a.pending.orders} طلب — لا تدخل الحسابات بعد</span></div>`;
+  const note = $('#acctNote');
+  note.hidden = !a.unitsWithoutCost;
+  note.textContent = a.unitsWithoutCost ? `⚠️ ${a.unitsWithoutCost} قطعة مباعة بدون «سعر الشراء» — لم تُحسب في الربح. أضف سعر الشراء من تعديل العطر.` : '';
+
+  const maxQty = Math.max(1, ...a.topProducts.map(p=>p.qty));
+  $('#acctTop').innerHTML = !a.topProducts.length ? '<div class="empty" style="padding:24px;">لا توجد مبيعات مُسلَّمة في هذه الفترة.</div>'
+    : a.topProducts.map(p=>`<div class="bar-row" title="${esc(p.ar)}: ${p.qty} قطعة · ${fmtIQD(p.sales)}${p.profitKnown ? ' · ربح ' + fmtIQD(p.profit) : ''}">
+        <span class="lbl">${esc(p.ar)}</span>
+        <div class="track"><div class="fill" style="width:${Math.round(p.qty/maxQty*100)}%"></div></div>
+        <span class="n acct-n">${p.qty} · ${fmtIQD(p.sales)}</span>
+      </div>`).join('');
+
+  const payTotal = Object.values(a.byPayment).reduce((x,y)=>x+y, 0);
+  $('#acctPay').innerHTML = !payTotal ? '<div class="empty" style="padding:18px;">—</div>'
+    : `<table class="acct"><tbody>${Object.entries(a.byPayment).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`
+        <tr><td>${esc(PAYMENT_LABELS[k] || k)}</td><td class="num">${fmtIQD(v)}</td><td class="num muted">${Math.round(v/payTotal*100)}%</td></tr>`).join('')}</tbody></table>`;
+
+  const st = a.stock;
+  $('#acctStock').innerHTML = `
+    <table class="acct"><tbody>
+      <tr><td>قطع في المخزن</td><td class="num">${st.units}</td></tr>
+      <tr><td>قيمتها بسعر البيع</td><td class="num">${fmtIQD(st.valueAtPrice)}</td></tr>
+      <tr><td>قيمتها بسعر الشراء</td><td class="num">${fmtIQD(st.valueAtCost)}${st.withoutCost ? ` <small class="muted">(${st.withoutCost} بدون سعر شراء)</small>` : ''}</td></tr>
+      <tr><td>عطور مخزنها متتبَّع</td><td class="num">${st.trackedProducts} <small class="muted">/ ${st.trackedProducts + st.untrackedProducts}</small></td></tr>
+    </tbody></table>
+    ${st.out.length ? `<p class="stock-note bad" style="margin-top:12px;">نفذت: ${st.out.map(p=>esc(p.ar)).join('، ')}</p>` : ''}
+    ${st.low.length ? `<p class="stock-note warn" style="margin-top:8px;">قاربت على النفاد: ${st.low.map(p=>esc(p.ar) + ' (' + p.qty + ')').join('، ')}</p>` : ''}`;
+
+  $('#acctLedger').innerHTML = !a.entries.length ? '<div class="empty" style="padding:24px;">لا توجد عمليات في هذه الفترة.</div>'
+    : `<div class="acct-scroll"><table class="acct">
+        <thead><tr><th>التاريخ</th><th>الزبون</th><th>العطور</th><th class="num">المبلغ</th><th class="num">الربح</th></tr></thead>
+        <tbody>${a.entries.map(e=>{
+          const profit = e.lines.every(l=>l.lineProfit !== null) ? fmtIQD(e.lines.reduce((s,l)=>s+l.lineProfit,0)) : '—';
+          return `<tr class="${e.reversedAt ? 'reversed' : ''}" title="${e.reversedAt ? 'أُلغي التسليم — أُعيدت الكميات إلى المخزن' : ''}">
+            <td>${new Date(e.date).toLocaleDateString('ar-IQ')}</td>
+            <td>${esc(e.customer)}</td>
+            <td>${e.lines.map(l=>esc(l.ar) + ' × ' + l.qty).join('<br>')}</td>
+            <td class="num">${fmtIQD(e.total)}</td>
+            <td class="num">${profit}</td></tr>`;
+        }).join('')}</tbody></table></div>`;
+}
+
+$$('#acctRange [data-range]').forEach(b=> b.addEventListener('click', ()=>{
+  acctRange = b.dataset.range;
+  $$('#acctRange [data-range]').forEach(x=> x.classList.toggle('active', x === b));
+  loadAccounting();
+}));
+
+$('#acctCsvBtn').addEventListener('click', async ()=>{
+  try{
+    const res = await fetch('/api/admin/accounting.csv' + rangeQuery(), { headers:{ 'Authorization': 'Bearer ' + token } });
+    if(!res.ok) throw new Error();
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url; a.download = `alrayhan-accounting-${acctRange}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  }catch(e){ toast('تعذر تنزيل الملف'); }
+});
+
 async function checkSecurity(){
   try{ const s = await api('/api/admin/security'); $('#secWarn').hidden = !!s.passwordSetInPanel; }catch(e){}
 }
-$('#secWarnBtn').addEventListener('click', ()=> document.querySelector('.tab[data-view="security"]').click());
+$('#secWarnBtn').addEventListener('click', ()=> showView('security'));
 
 $('#pwForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -835,28 +1012,43 @@ async function enterApp(){
   $('#loginScreen').style.display = 'none';
   $('#app').classList.add('show');
   checkSecurity();
+  refreshNewBadge();
   await loadAll();
 }
 
 /* ---------------- tabs ---------------- */
-$$('.tab').forEach(tab=>{
-  tab.addEventListener('click', ()=>{
-    $$('.tab').forEach(t=>t.classList.remove('active'));
-    tab.classList.add('active');
-    $$('.view').forEach(v=>v.classList.remove('show'));
-    $('#view-' + tab.dataset.view).classList.add('show');
-    if(tab.dataset.view === 'orders') loadOrders();
-    if(tab.dataset.view === 'stats') renderStats();
-    if(tab.dataset.view === 'ads') loadAds();
-    if(tab.dataset.view === 'mail') loadMail();
-    if(tab.dataset.view === 'security') $('#pwMsg').textContent = '';
-  });
+function showView(view){
+  $$('.tab').forEach(t=> t.classList.toggle('active', t.dataset.view === view));
+  $$('#gearMenu [data-view]').forEach(b=> b.classList.toggle('active', b.dataset.view === view));
+  $('#gearBtn').classList.toggle('active', !!$('#gearMenu [data-view="' + view + '"]'));
+  $$('.view').forEach(v=>v.classList.remove('show'));
+  $('#view-' + view).classList.add('show');
+  closeGearMenu();
+  if(view === 'orders') loadOrders();
+  if(view === 'accounting') loadAccounting();
+  if(view === 'stats') renderStats();
+  if(view === 'ads') loadAds();
+  if(view === 'mail') loadMail();
+  if(view === 'security') $('#pwMsg').textContent = '';
+}
+$$('.tab').forEach(tab=> tab.addEventListener('click', ()=> showView(tab.dataset.view)));
+
+/* ⚙ menu: statistics, mail and security live here */
+function closeGearMenu(){ $('#gearMenu').classList.remove('open'); $('#gearBtn').setAttribute('aria-expanded','false'); }
+$('#gearBtn').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  const open = !$('#gearMenu').classList.contains('open');
+  $('#gearMenu').classList.toggle('open', open);
+  $('#gearBtn').setAttribute('aria-expanded', String(open));
 });
+$$('#gearMenu [data-view]').forEach(b=> b.addEventListener('click', ()=> showView(b.dataset.view)));
+document.addEventListener('click', (e)=>{ if(!e.target.closest('.gear-wrap')) closeGearMenu(); });
+document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeGearMenu(); });
 
 /* ---------------- data loading ---------------- */
 async function loadAll(){
   try{
-    [products, brands] = await Promise.all([ api('/api/products'), api('/api/brands') ]);
+    [products, brands] = await Promise.all([ api('/api/admin/products'), api('/api/brands') ]);
     renderProducts();
     renderBrands();
     refreshBrandSelect();
@@ -867,6 +1059,7 @@ async function loadOrders(){
   try{
     orders = await api('/api/admin/orders');
     renderOrders();
+    setNewBadge(orders.filter(o=>(o.status||'new')==='new').length);
   }catch(e){ toast('تعذر تحميل الطلبات'); }
   try{
     const pre = await api('/api/admin/preorders');
@@ -1042,6 +1235,7 @@ function openProductModal(product, presetBrand){
     form.priceNum.value = product.priceNum || '';
     form.vol.value = product.vol || '';
     form.qty.value = typeof product.qty === 'number' ? product.qty : '';
+    form.cost.value = typeof product.cost === 'number' ? product.cost : '';
     form.available.checked = product.available !== false;
     form.original.checked = !!product.original;
     form.limited.checked = !!product.limited;
@@ -1082,6 +1276,9 @@ $('#productForm').addEventListener('submit', async (e)=>{
   };
   if(qtyRaw !== '') payload.qty = Math.max(0, parseInt(qtyRaw.replace(/[^\d]/g,''),10) || 0);
   else if(id) payload.qty = null;
+  const costRaw = form.cost.value.trim();
+  if(costRaw !== '') payload.cost = parseInt(costRaw.replace(/[^\d]/g,''),10) || 0;
+  else if(id) payload.cost = null;
 
   const pyrIn = {
     top:   { notes: form.topNotes.value.trim(),   pct: form.topPct.value.trim() },
@@ -1537,6 +1734,18 @@ const PAYMENT_LABELS = { cod:'الدفع عند الاستلام', zaincash:'ز�
 
 $('#refreshOrdersBtn').addEventListener('click', loadOrders);
 
+/* live stock line under each item of an order */
+function stockNote(it, status){
+  const s = it.stock || {};
+  if(status === 'delivered') return ' <small class="stock-note ok">✓ خُصم من المخزن</small>';
+  if(status === 'cancelled') return '';
+  if(s.missing) return ' <small class="stock-note bad">⚠️ العطر محذوف من المنتجات</small>';
+  if(!s.tracked) return ' <small class="stock-note">المخزن غير متتبَّع</small>';
+  if(!s.enough) return ` <small class="stock-note bad">⚠️ في المخزن ${s.inStock} فقط</small>`;
+  if(!s.allOpenFit) return ` <small class="stock-note warn">في المخزن ${s.inStock} — والطلبات المفتوحة تحتاج ${s.reservedByOpen}</small>`;
+  return ` <small class="stock-note ok">في المخزن ${s.inStock}</small>`;
+}
+
 function renderOrders(){
   const wrap = $('#orderList');
   if(!orders.length){ wrap.innerHTML = '<div class="empty">لا توجد طلبات بعد.</div>'; return; }
@@ -1546,7 +1755,7 @@ function renderOrders(){
       ? `${DELIVERY_LABELS.pickup} — ${esc(o.branch==='المثنى'?'حي المثنى':'حي البلديات')}`
       : `${DELIVERY_LABELS.delivery}${o.address ? ' — ' + esc(o.address) : ''}`;
     return `
-      <div class="order" data-id="${esc(o.id)}">
+      <div class="order${status === 'new' ? ' is-new' : ''}${o.stockOk === false ? ' stock-bad' : ''}" data-id="${esc(o.id)}">
         <div class="order-top">
           <div>
             <h4>${esc(o.name)} <span class="pill ${status}">${STATUS_LABELS[status]}</span></h4>
@@ -1557,7 +1766,7 @@ function renderOrders(){
           <div class="order-total">${fmtIQD(o.total)}</div>
         </div>
         <div class="order-items">
-          ${o.items.map(it=>`<div><span>${esc(it.ar)} × ${it.qty}</span><span>${fmtIQD(it.lineTotal)}</span></div>`).join('')}
+          ${o.items.map(it=>`<div><span>${esc(it.ar)} × ${it.qty}${stockNote(it, status)}</span><span>${fmtIQD(it.lineTotal)}</span></div>`).join('')}
         </div>
         ${o.notes ? `<div class="meta" style="font-size:12.5px; color:var(--bone-dim);">ملاحظات: ${esc(o.notes)}</div>` : ''}
         <div class="order-actions">
@@ -1573,12 +1782,17 @@ function renderOrders(){
 $('#orderList').addEventListener('change', async (e)=>{
   if(e.target.dataset.act !== 'status') return;
   const id = e.target.closest('.order').dataset.id;
+  const order = orders.find(o=>o.id===id);
+  const next = e.target.value;
+  if(next === 'delivered' && !confirm('تأكيد التسليم؟\nسيُخصم هذا الطلب من المخزن ويُسجَّل في الحسابات.')){ renderOrders(); return; }
+  if(order.status === 'delivered' && !confirm('إلغاء التسليم؟\nستُعاد الكميات إلى المخزن ويُلغى تسجيله من الحسابات.')){ renderOrders(); return; }
   try{
-    const updated = await api('/api/admin/orders/' + id, { method:'PUT', body: JSON.stringify({ status: e.target.value }) });
-    Object.assign(orders.find(o=>o.id===id), updated);
-    renderOrders();
-    toast('تم تحديث حالة الطلب');
-  }catch(err){ toast(err.message); }
+    await api('/api/admin/orders/' + id, { method:'PUT', body: JSON.stringify({ status: next }) });
+    toast(next === 'delivered' ? 'تم التسليم — خُصم من المخزن وسُجّل في الحسابات' : 'تم تحديث حالة الطلب');
+    await loadOrders();                     // re-sorts and refreshes every stock line
+    refreshNewBadge();
+    products = await api('/api/admin/products'); renderProducts();   // stock numbers changed
+  }catch(err){ toast(err.message); renderOrders(); }
 });
 
 $('#orderList').addEventListener('click', async (e)=>{
