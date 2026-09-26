@@ -149,6 +149,8 @@
     color:var(--bone-dim); background:var(--panel-2); transition:border-color .2s, color .2s;
   }
   .thumb:hover{ border-color:var(--gold); color:var(--gold-bright); }
+  .thumb.logo-thumb{ width:72px; height:72px; border-radius:50%; }
+  .thumb.logo-thumb img{ object-fit:contain !important; background:#fff; }
   .thumb svg{ width:20px; height:20px; }
   .thumb.has-photo{ border-style:solid; border-color:var(--line); }
   .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
@@ -747,6 +749,19 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
           </div>
         </div>
       </div>
+      <div class="field" id="logoField" style="display:none;">
+        <label>شعار الخط (يظهر بجانب اسم الخط في المتجر)</label>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <label class="thumb logo-thumb" id="logoThumb" title="رفع شعار الخط">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            <input type="file" accept="image/*" id="logoFileInput" hidden>
+          </label>
+          <div>
+            <div style="font-size:11.5px; color:var(--bone-dim); margin-bottom:6px;">اضغط على المربع لاختيار صورة (مربعة، بخلفية فاتحة أفضل). بدون شعار يظهر الرسم الذهبي الافتراضي.</div>
+            <button class="btn sm ghost" type="button" id="removeLogoBtn" style="display:none;">إزالة الشعار</button>
+          </div>
+        </div>
+      </div>
       <div class="modal-actions">
         <button class="btn ghost" type="button" data-close="brandModal">إلغاء</button>
         <button class="btn solid" type="submit">حفظ</button>
@@ -1334,7 +1349,7 @@ function renderBrands(){
     return `
       <div class="row" data-key="${esc(b.key)}">
         <div class="nm" style="display:flex; align-items:center; gap:10px;">
-          <span class="swatch" style="width:14px; height:14px; border-radius:50%; background:${esc(b.color)}; flex-shrink:0;"></span>
+          ${b.logoUrl ? `<img src="${esc(b.logoUrl)}" alt="" style="width:30px; height:30px; border-radius:50%; object-fit:contain; background:#fff; border:1px solid var(--line); flex-shrink:0;">` : `<span class="swatch" style="width:14px; height:14px; border-radius:50%; background:${esc(b.color)}; flex-shrink:0;"></span>`}
           <span>${esc(b.label)}<small>${esc(b.tag||'')} · ${count} عطر</small></span>
         </div>
         <button class="btn sm ghost" data-act="edit-brand" type="button">تعديل</button>
@@ -1375,6 +1390,8 @@ function openBrandModal(brand){
   const bannerThumb = $('#bannerThumb');
   const removeBtn = $('#removeBannerBtn');
 
+  setLogoThumb(brand && brand.logoUrl);
+  $('#logoField').style.display = brand ? 'block' : 'none';
   if(brand){
     $('#bmTitle').textContent = 'تعديل الخط';
     form.key.value = brand.key;
@@ -1437,6 +1454,51 @@ $('#removeBannerBtn').addEventListener('click', async ()=>{
     thumb.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><input type="file" accept="image/*" id="bannerFileInput" hidden>`;
     $('#removeBannerBtn').style.display = 'none';
     toast('تمت إزالة صورة الإعلان');
+  }catch(err){ toast(err.message); }
+});
+
+/* ---- brand logo ---- */
+const PHOTO_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>`;
+function setLogoThumb(url){
+  const thumb = $('#logoThumb');
+  thumb.classList.toggle('has-photo', !!url);
+  thumb.innerHTML = (url ? `<img src="${esc(url)}" alt="">` : PHOTO_ICON) + `<input type="file" accept="image/*" id="logoFileInput" hidden>`;
+  $('#removeLogoBtn').style.display = url ? 'inline-flex' : 'none';
+}
+$('#brandModal').addEventListener('change', async (e)=>{
+  if(e.target.id !== 'logoFileInput') return;
+  const file = e.target.files && e.target.files[0];
+  if(!file || !editingBrandKey) return;
+  const thumb = $('#logoThumb');
+  thumb.classList.add('busy');
+  try{
+    const fd = new FormData();
+    fd.append('photo', file);
+    const res = await fetch('/api/admin/brands/' + editingBrandKey + '/logo', {
+      method:'POST', headers:{ 'Authorization':'Bearer ' + token }, body: fd
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'تعذر رفع الشعار');
+    Object.assign(brands.find(b=>b.key===editingBrandKey), data);
+    thumb.classList.remove('busy');
+    setLogoThumb(data.logoUrl);
+    renderBrands();
+    toast('تم تحديث شعار الخط — يظهر في المتجر فوراً');
+  }catch(err){
+    thumb.classList.remove('busy');
+    toast(err.message);
+  }
+});
+$('#removeLogoBtn').addEventListener('click', async ()=>{
+  if(!editingBrandKey) return;
+  if(!confirm('إزالة شعار هذا الخط والعودة للرسم الافتراضي؟')) return;
+  try{
+    const data = await api('/api/admin/brands/' + editingBrandKey + '/logo', { method:'DELETE' });
+    const b = brands.find(x=>x.key===editingBrandKey);
+    delete b.logoUrl; Object.assign(b, data);
+    setLogoThumb(null);
+    renderBrands();
+    toast('تمت إزالة الشعار');
   }catch(err){ toast(err.message); }
 });
 
