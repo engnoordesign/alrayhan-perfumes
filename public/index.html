@@ -75,6 +75,11 @@
   html[data-theme="light"] .light-avatar,
   html[data-theme="light"] .profile-avatar-lg{ color:#FFFDF7; }
 
+  /* uploaded brand logos fill their round frame */
+  .brand-icon:has(.brand-logo-img){ padding:0; overflow:hidden; background:#fff; width:46px; height:46px; }
+  .brand-logo-img{ width:100%; height:100%; object-fit:contain; display:block; border-radius:50%; }
+  .slide-icon .brand-logo-img{ border-radius:50%; background:#fff; box-shadow:0 0 0 1px rgba(201,162,39,.5); }
+
   /* ---------- soft fade when switching dark / light ---------- */
   ::view-transition-old(root), ::view-transition-new(root){ animation-duration:.6s; animation-timing-function:ease-in-out; }
   html.theme-fade, html.theme-fade *, html.theme-fade *::before, html.theme-fade *::after{
@@ -1814,6 +1819,8 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
 
   /* ---------------- brand symbol marks (original, generic — not copies of real logos) ---------------- */
   function brandIcon(key){
+    const logo = brandMeta[key] && brandMeta[key].logoUrl;
+    if(logo && /^\/uploads\/[\w.-]+$/.test(logo)) return `<img class="brand-logo-img" src="${logo}" alt="" loading="lazy">`;
     const stroke = 'var(--gold-bright)';
     const marks = {
       ibraq: `<svg viewBox="0 0 40 40"><polygon points="20,4 34,15 29,36 11,36 6,15" fill="none" stroke="${stroke}" stroke-width="1.6"/><polygon points="20,4 34,15 20,18 6,15" fill="none" stroke="${stroke}" stroke-width="1"/></svg>`,
@@ -3678,7 +3685,7 @@ new MutationObserver(()=>{ heroIndex = 0; renderHeroSlides(); restartHeroTimer()
       productsData.forEach(p=> products.push(p));
       brandsData.forEach(b=>{
         brandOrder.push(b.key);
-        brandMeta[b.key] = { label: b.label, tag: b.tag, bannerUrl: b.bannerUrl || null };
+        brandMeta[b.key] = { label: b.label, tag: b.tag, bannerUrl: b.bannerUrl || null, logoUrl: b.logoUrl || null };
         brandAccentColors[b.key] = b.color;
       });
       diamonds = diamondsData;
