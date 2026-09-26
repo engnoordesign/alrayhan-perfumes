@@ -672,11 +672,12 @@ app.delete('/api/admin/brands/:key', requireAdmin, (req, res) => {
   brands.splice(idx, 1);
   writeTable('brands', brands);
 
-  // remove the brand's advertising photo, if any
+  // remove the brand's advertising photo and logo, if any
   if (removedBrand.bannerUrl) {
     const bannerPath = uploadFile(removedBrand.bannerUrl);
     fs.unlink(bannerPath, () => {});
   }
+  if (removedBrand.logoUrl) fs.unlink(uploadFile(removedBrand.logoUrl), () => {});
 
   // cascade delete every product that belonged to this brand (and their photos)
   const products = readTable('products');
@@ -930,6 +931,35 @@ app.delete('/api/admin/brands/:key/photo', requireAdmin, (req, res) => {
     const old = uploadFile(brand.bannerUrl);
     fs.unlink(old, () => {});
     delete brand.bannerUrl;
+    writeTable('brands', brands);
+  }
+  res.json(brand);
+});
+
+/* brand logo — replaces the drawn icon next to the brand's name in the
+   store (group heading, product window and the homepage showcase). */
+const uploadBrandLogo = imageUpload('logo', 2);
+
+app.post('/api/admin/brands/:key/logo', requireAdmin, (req, res) => {
+  receiveImage(uploadBrandLogo, req, res, () => {
+    const brands = readTable('brands');
+    const brand = brands.find(b => b.key === req.params.key);
+    if (!brand) { if (req.file) fs.unlink(req.file.path, () => {}); return res.status(404).json({ error: 'الخط غير موجود' }); }
+    if (!req.file) return res.status(400).json({ error: 'لم يتم إرسال صورة' });
+    if (brand.logoUrl) fs.unlink(uploadFile(brand.logoUrl), () => {});
+    brand.logoUrl = `/uploads/${req.file.filename}`;
+    writeTable('brands', brands);
+    res.json(brand);
+  });
+});
+
+app.delete('/api/admin/brands/:key/logo', requireAdmin, (req, res) => {
+  const brands = readTable('brands');
+  const brand = brands.find(b => b.key === req.params.key);
+  if (!brand) return res.status(404).json({ error: 'الخط غير موجود' });
+  if (brand.logoUrl) {
+    fs.unlink(uploadFile(brand.logoUrl), () => {});
+    delete brand.logoUrl;
     writeTable('brands', brands);
   }
   res.json(brand);
