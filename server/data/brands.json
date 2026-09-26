@@ -2,10 +2,12 @@
   {
     "key": "ibraq",
     "label": "ابراق -ibraq",
-    "tag": "Ibraq Diamond Collection",
+    "tag": "Ibraq  Collection",
     "color": "#c9a227",
     "order": 0,
-    "custom": false
+    "custom": false,
+    "bannerUrl": "/uploads/brand_f5366b3c558dc492d8aabfcf.webp",
+    "logoUrl": "/uploads/logo_1c6ddcdc762202f0561c16e3.webp"
   },
   {
     "key": "assaf",
@@ -14,15 +16,18 @@
     "color": "#8b2e3c",
     "order": 1,
     "custom": false,
-    "bannerUrl": "/uploads/brand_9763d17275bc6e8e4c956fe9.png"
+    "bannerUrl": "/uploads/brand_9763d17275bc6e8e4c956fe9.png",
+    "logoUrl": "/uploads/logo_021210a4acd30fe63d334819.png"
   },
   {
     "key": "armaf",
     "label": "أرماف Armaf",
     "tag": "Club de Nuit",
-    "color": "#3E6B8A",
+    "color": "#3e6b8a",
     "order": 2,
-    "custom": false
+    "custom": false,
+    "logoUrl": "/uploads/logo_e2cc85baabc66dc2f861871d.jpg",
+    "bannerUrl": "/uploads/brand_de342f636b696daefb09eb83.jpg"
   },
   {
     "key": "afnan",
@@ -30,7 +35,9 @@
     "tag": "",
     "color": "#6b4a8a",
     "order": 3,
-    "custom": false
+    "custom": false,
+    "logoUrl": "/uploads/logo_9c6429a0c010470ad96ae286.webp",
+    "bannerUrl": "/uploads/brand_9a4a595830d8cefac52c233d.webp"
   },
   {
     "key": "hawas",
@@ -38,7 +45,9 @@
     "tag": "",
     "color": "#2e8b7a",
     "order": 4,
-    "custom": false
+    "custom": false,
+    "logoUrl": "/uploads/logo_e42281b8e990723bbf6b0101.jpg",
+    "bannerUrl": "/uploads/brand_cd8c214816f89dc118f6bcc1.jpg"
   },
   {
     "key": "alhambra",
@@ -46,7 +55,9 @@
     "tag": "",
     "color": "#b87a6b",
     "order": 5,
-    "custom": false
+    "custom": false,
+    "logoUrl": "/uploads/logo_9f678724b9ff2d3e64dddf4e.jpg",
+    "bannerUrl": "/uploads/brand_be68c843a73a2cd0961cc2c2.jpg"
   },
   {
     "key": "bold",
@@ -54,7 +65,9 @@
     "tag": "Intense · Hard · Green",
     "color": "#4a5a3c",
     "order": 6,
-    "custom": false
+    "custom": false,
+    "logoUrl": "/uploads/logo_3ae2aefeb38b2adcd02b6772.png",
+    "bannerUrl": "/uploads/brand_17fad4b298a888a9d5449093.png"
   },
   {
     "key": "nightdeparis",
@@ -62,23 +75,29 @@
     "tag": "",
     "color": "#7a3b52",
     "order": 7,
-    "custom": false
+    "custom": false,
+    "logoUrl": "/uploads/logo_5fc55aa967d9b07ee5cb56b6.png",
+    "bannerUrl": "/uploads/brand_602f5b71d9c880dcabaebe27.png"
   },
   {
     "key": "aurora",
     "label": "أورورا Aurora",
     "tag": "",
-    "color": "#D98C3B",
+    "color": "#d98c3b",
     "order": 8,
-    "custom": false
+    "custom": false,
+    "logoUrl": "/uploads/logo_60091dfb45ac6dd0cfff974f.jpg",
+    "bannerUrl": "/uploads/brand_20cf82b3f37e8b109f47bca2.jpg"
   },
   {
     "key": "nitro",
     "label": "نيترو Nitro — Dumont Paris",
     "tag": "Platinum · Green · Black · Blue · White",
-    "color": "#6E6A62",
+    "color": "#6e6a62",
     "order": 9,
-    "custom": false
+    "custom": false,
+    "logoUrl": "/uploads/logo_5b1c9d226295f578fcb939cd.jpg",
+    "bannerUrl": "/uploads/brand_e01ac9ce090f86b915484d34.jpg"
   },
   {
     "key": "designer",
@@ -86,6 +105,8 @@
     "tag": "Designer Originals",
     "color": "#c9a227",
     "order": 10,
-    "custom": false
+    "custom": false,
+    "logoUrl": "/uploads/logo_f7506550afb26a70685f0441.jpg",
+    "bannerUrl": "/uploads/brand_8bacb42e810be6751b7799b3.jpg"
   }
 ]

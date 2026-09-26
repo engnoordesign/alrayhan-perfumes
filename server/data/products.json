@@ -5,9 +5,9 @@
     "ar": "بلاك كاربون دايموند",
     "notes": "الأقوى في المجموعة — بداية حمضية جافة تتجه نحو خشب داكن وعميق، مناسب للمساء والشتاء.",
     "price": "55,000 د.ع",
-    "vol": "80 مل",
+    "vol": "150مل",
     "icon": "gem",
-    "color": "#2B2B2B",
+    "color": "#c9a227",
     "id": "prod_0",
     "priceNum": 55000,
     "pyramid": {
@@ -24,7 +24,10 @@
         "pct": "38%"
       }
     },
-    "photoUrl": "/uploads/prod_abb854afadab9831940c6f86.jpg"
+    "photoUrl": "/uploads/prod_abb854afadab9831940c6f86.jpg",
+    "available": true,
+    "original": true,
+    "limited": false
   },
   {
     "brand": "ibraq",
@@ -32,9 +35,9 @@
     "ar": "إميرالد سول دايموند",
     "notes": "حمضي منعش يتحول تدريجياً إلى دفء ناعم من الفانيليا — الأفضل مبيعاً في المجموعة.",
     "price": "55,000 د.ع",
-    "vol": "80 مل",
+    "vol": "150مل",
     "icon": "gem",
-    "color": "#2F6B4F",
+    "color": "#c9a227",
     "id": "prod_1",
     "priceNum": 55000,
     "pyramid": {
@@ -51,7 +54,10 @@
         "pct": "32%"
       }
     },
-    "photoUrl": "/uploads/prod_1843568a402ae2e60d3dc8e5.jpg"
+    "photoUrl": "/uploads/prod_1843568a402ae2e60d3dc8e5.jpg",
+    "available": true,
+    "original": true,
+    "limited": false
   },
   {
     "brand": "ibraq",
@@ -59,9 +65,9 @@
     "ar": "جراي بيرل دايموند",
     "notes": "مزيج نادر بين الانتعاش المائي ودفء العود والبخور، عطر مركّب وغير تقليدي.",
     "price": "55,000 د.ع",
-    "vol": "80 مل",
+    "vol": "150مل",
     "icon": "gem",
-    "color": "#9AA0A6",
+    "color": "#c9a227",
     "id": "prod_2",
     "priceNum": 55000,
     "pyramid": {
@@ -78,7 +84,10 @@
         "pct": "38%"
       }
     },
-    "photoUrl": "/uploads/prod_53ba86faa05b0aaaa1b3ae35.jpg"
+    "photoUrl": "/uploads/prod_53ba86faa05b0aaaa1b3ae35.jpg",
+    "available": true,
+    "original": true,
+    "limited": false
   },
   {
     "brand": "ibraq",
@@ -86,9 +95,9 @@
     "ar": "وايت ريجنت دايموند",
     "notes": "نقي وأنيق، بتوازن بين الخشب الفاتح والحلاوة الجافة لحبة التونكا.",
     "price": "55,000 د.ع",
-    "vol": "80 مل",
+    "vol": "150مل",
     "icon": "gem",
-    "color": "#EDE8DE",
+    "color": "#c9a227",
     "id": "prod_3",
     "priceNum": 55000,
     "pyramid": {
@@ -105,7 +114,10 @@
         "pct": "40%"
       }
     },
-    "photoUrl": "/uploads/prod_ca46cb88c5183317f6ac6c6f.jpg"
+    "photoUrl": "/uploads/prod_ca46cb88c5183317f6ac6c6f.jpg",
+    "available": true,
+    "original": true,
+    "limited": false
   },
   {
     "brand": "ibraq",
@@ -113,9 +125,9 @@
     "ar": "بربل هارت دايموند",
     "notes": "زهري توابلي بشخصية قوية، يجمع بين اللافندر والعود بتوازن غير معتاد.",
     "price": "55,000 د.ع",
-    "vol": "80 مل",
+    "vol": "150 مل",
     "icon": "gem",
-    "color": "#7C5CBF",
+    "color": "#c9a227",
     "id": "prod_4",
     "priceNum": 55000,
     "pyramid": {
@@ -132,7 +144,10 @@
         "pct": "38%"
       }
     },
-    "photoUrl": "/uploads/prod_61759c34788d84d3543aff05.jpg"
+    "photoUrl": "/uploads/prod_61759c34788d84d3543aff05.jpg",
+    "available": true,
+    "original": true,
+    "limited": false
   },
   {
     "brand": "ibraq",
@@ -140,9 +155,9 @@
     "ar": "نود كورال دايموند",
     "notes": "ناعم وبودرة الملمس، بلمسات مرجانية دافئة تناسب الاستخدام اليومي.",
     "price": "55,000 د.ع",
-    "vol": "80 مل",
+    "vol": "150 مل",
     "icon": "gem",
-    "color": "#E0A98D",
+    "color": "#c9a227",
     "id": "prod_5",
     "priceNum": 55000,
     "pyramid": {
@@ -159,7 +174,10 @@
         "pct": "32%"
       }
     },
-    "photoUrl": "/uploads/prod_1b44b6b770ea42441060a054.jpg"
+    "photoUrl": "/uploads/prod_1b44b6b770ea42441060a054.jpg",
+    "available": true,
+    "original": true,
+    "limited": false
   },
   {
     "brand": "ibraq",
@@ -167,9 +185,9 @@
     "ar": "بينك ساكورا دايموند",
     "notes": "زهري ربيعي خفيف مستوحى من أزهار الكرز، مثالي للنهار وفصل الربيع.",
     "price": "55,000 د.ع",
-    "vol": "80 مل",
+    "vol": "150 مل",
     "icon": "gem",
-    "color": "#E8A3C0",
+    "color": "#c9a227",
     "id": "prod_6",
     "priceNum": 55000,
     "pyramid": {
@@ -186,7 +204,10 @@
         "pct": "32%"
       }
     },
-    "photoUrl": "/uploads/prod_c65fb23d0dcc4fa3499dab1f.jpg"
+    "photoUrl": "/uploads/prod_c65fb23d0dcc4fa3499dab1f.jpg",
+    "available": true,
+    "original": true,
+    "limited": false
   },
   {
     "brand": "ibraq",
@@ -194,9 +215,9 @@
     "ar": "بلو أكوا دايموند (المعروف بـ Blue Diamond)",
     "notes": "منعش ومائي من أول رشة، الخيار المفضل للأجواء الحارة والاستخدام الصباحي.",
     "price": "55,000 د.ع",
-    "vol": "80 مل",
+    "vol": "150 مل",
     "icon": "gem",
-    "color": "#4A90C4",
+    "color": "#c9a227",
     "id": "prod_7",
     "priceNum": 55000,
     "pyramid": {
@@ -213,7 +234,10 @@
         "pct": "32%"
       }
     },
-    "photoUrl": "/uploads/prod_c5299ab21c5417a94f3ea368.jpg"
+    "photoUrl": "/uploads/prod_c5299ab21c5417a94f3ea368.jpg",
+    "available": true,
+    "original": true,
+    "limited": false
   },
   {
     "brand": "ibraq",
@@ -221,9 +245,9 @@
     "ar": "كولينان إيريس دايموند (المعروف بـ Cullinan Diamond)",
     "notes": "أفخم قطعة بالمجموعة — سُمّيت تيمناً بأشهر ماسة في العالم، حضور راقٍ وثبات طويل.",
     "price": "55,000 د.ع",
-    "vol": "80 مل",
+    "vol": "150 مل",
     "icon": "gem",
-    "color": "#CFD6E6",
+    "color": "#c9a227",
     "id": "prod_8",
     "priceNum": 55000,
     "pyramid": {
@@ -240,7 +264,10 @@
         "pct": "42%"
       }
     },
-    "photoUrl": "/uploads/prod_3ff7a7d9d2eae44d2a280925.jpg"
+    "photoUrl": "/uploads/prod_3ff7a7d9d2eae44d2a280925.jpg",
+    "available": true,
+    "original": true,
+    "limited": false
   },
   {
     "brand": "ibraq",
@@ -248,9 +275,9 @@
     "ar": "بلاك إنسنس دايموند (المعروف بـ Black Diamond)",
     "notes": "كثيف ومدخّن، الأقرب لروائح العود الفاخرة بين كل قطع المجموعة.",
     "price": "55,000 د.ع",
-    "vol": "80 مل",
+    "vol": "150مل",
     "icon": "gem",
-    "color": "#171512",
+    "color": "#c9a227",
     "id": "prod_9",
     "priceNum": 55000,
     "pyramid": {
@@ -267,7 +294,10 @@
         "pct": "38%"
       }
     },
-    "photoUrl": "/uploads/prod_1ddccf2d06bbd0fbbf441b01.jpg"
+    "photoUrl": "/uploads/prod_1ddccf2d06bbd0fbbf441b01.jpg",
+    "available": true,
+    "original": true,
+    "limited": false
   },
   {
     "brand": "assaf",
@@ -1370,5 +1400,23 @@
     "color": "#C9A227",
     "id": "prod_99",
     "priceNum": 155000
+  },
+  {
+    "id": "prod_muhn93ed59ae2493",
+    "brand": "ibraq",
+    "ar": "بالاس روز دايموند",
+    "name": "Balas Rose diamond",
+    "notes": "عطر مضاف حديثاً — لا يوجد وصف بعد.",
+    "priceNum": 55000,
+    "price": "55,000 د.ع",
+    "vol": "150مل",
+    "icon": "bottle",
+    "shape": "classic",
+    "color": "#c9a227",
+    "available": true,
+    "original": true,
+    "limited": false,
+    "custom": true,
+    "photoUrl": "/uploads/prod_fb08e48a1e8837176c62acde.jpg"
   }
 ]
