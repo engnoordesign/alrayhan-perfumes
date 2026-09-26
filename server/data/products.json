@@ -4,12 +4,12 @@
     "name": "Black Carbon Diamond",
     "ar": "بلاك كاربون دايموند",
     "notes": "الأقوى في المجموعة — بداية حمضية جافة تتجه نحو خشب داكن وعميق، مناسب للمساء والشتاء.",
-    "price": "45,000 د.ع",
+    "price": "55,000 د.ع",
     "vol": "80 مل",
     "icon": "gem",
     "color": "#2B2B2B",
     "id": "prod_0",
-    "priceNum": 45000,
+    "priceNum": 55000,
     "pyramid": {
       "top": {
         "notes": "برغموت، تفاح",
@@ -23,19 +23,20 @@
         "notes": "خشب الصندل، مسك",
         "pct": "38%"
       }
-    }
+    },
+    "photoUrl": "/uploads/prod_abb854afadab9831940c6f86.jpg"
   },
   {
     "brand": "ibraq",
     "name": "Emerald Soul Diamond",
     "ar": "إميرالد سول دايموند",
     "notes": "حمضي منعش يتحول تدريجياً إلى دفء ناعم من الفانيليا — الأفضل مبيعاً في المجموعة.",
-    "price": "45,000 د.ع",
+    "price": "55,000 د.ع",
     "vol": "80 مل",
     "icon": "gem",
     "color": "#2F6B4F",
     "id": "prod_1",
-    "priceNum": 45000,
+    "priceNum": 55000,
     "pyramid": {
       "top": {
         "notes": "برغموت، يوسفي",
@@ -49,19 +50,20 @@
         "notes": "فانيليا",
         "pct": "32%"
       }
-    }
+    },
+    "photoUrl": "/uploads/prod_1843568a402ae2e60d3dc8e5.jpg"
   },
   {
     "brand": "ibraq",
     "name": "Grey Pearl Diamond",
     "ar": "جراي بيرل دايموند",
     "notes": "مزيج نادر بين الانتعاش المائي ودفء العود والبخور، عطر مركّب وغير تقليدي.",
-    "price": "45,000 د.ع",
+    "price": "55,000 د.ع",
     "vol": "80 مل",
     "icon": "gem",
     "color": "#9AA0A6",
     "id": "prod_2",
-    "priceNum": 45000,
+    "priceNum": 55000,
     "pyramid": {
       "top": {
         "notes": "نوتات مائية، توت",
@@ -75,19 +77,20 @@
         "notes": "عود، بخور",
         "pct": "38%"
       }
-    }
+    },
+    "photoUrl": "/uploads/prod_53ba86faa05b0aaaa1b3ae35.jpg"
   },
   {
     "brand": "ibraq",
     "name": "White Regent Diamond",
     "ar": "وايت ريجنت دايموند",
     "notes": "نقي وأنيق، بتوازن بين الخشب الفاتح والحلاوة الجافة لحبة التونكا.",
-    "price": "45,000 د.ع",
+    "price": "55,000 د.ع",
     "vol": "80 مل",
     "icon": "gem",
     "color": "#EDE8DE",
     "id": "prod_3",
-    "priceNum": 45000,
+    "priceNum": 55000,
     "pyramid": {
       "top": {
         "notes": "خشب الصندل، هيل",
@@ -101,19 +104,20 @@
         "notes": "تونكا بين",
         "pct": "40%"
       }
-    }
+    },
+    "photoUrl": "/uploads/prod_ca46cb88c5183317f6ac6c6f.jpg"
   },
   {
     "brand": "ibraq",
     "name": "Purple Heart Diamond",
     "ar": "بربل هارت دايموند",
     "notes": "زهري توابلي بشخصية قوية، يجمع بين اللافندر والعود بتوازن غير معتاد.",
-    "price": "45,000 د.ع",
+    "price": "55,000 د.ع",
     "vol": "80 مل",
     "icon": "gem",
     "color": "#7C5CBF",
     "id": "prod_4",
-    "priceNum": 45000,
+    "priceNum": 55000,
     "pyramid": {
       "top": {
         "notes": "زهر البرتقال، لافندر",
@@ -127,19 +131,20 @@
         "notes": "عنبر",
         "pct": "38%"
       }
-    }
+    },
+    "photoUrl": "/uploads/prod_61759c34788d84d3543aff05.jpg"
   },
   {
     "brand": "ibraq",
     "name": "Nude Coral Diamond",
     "ar": "نود كورال دايموند",
     "notes": "ناعم وبودرة الملمس، بلمسات مرجانية دافئة تناسب الاستخدام اليومي.",
-    "price": "45,000 د.ع",
+    "price": "55,000 د.ع",
     "vol": "80 مل",
     "icon": "gem",
     "color": "#E0A98D",
     "id": "prod_5",
-    "priceNum": 45000,
+    "priceNum": 55000,
     "pyramid": {
       "top": {
         "notes": "خوخ، بيتيتغرين",
@@ -153,19 +158,20 @@
         "notes": "خشب دافئ",
         "pct": "32%"
       }
-    }
+    },
+    "photoUrl": "/uploads/prod_1b44b6b770ea42441060a054.jpg"
   },
   {
     "brand": "ibraq",
     "name": "Pink Sakura Diamond",
     "ar": "بينك ساكورا دايموند",
     "notes": "زهري ربيعي خفيف مستوحى من أزهار الكرز، مثالي للنهار وفصل الربيع.",
-    "price": "45,000 د.ع",
+    "price": "55,000 د.ع",
     "vol": "80 مل",
     "icon": "gem",
     "color": "#E8A3C0",
     "id": "prod_6",
-    "priceNum": 45000,
+    "priceNum": 55000,
     "pyramid": {
       "top": {
         "notes": "أزهار الكرز، توت أحمر",
@@ -179,19 +185,20 @@
         "notes": "مسك أبيض",
         "pct": "32%"
       }
-    }
+    },
+    "photoUrl": "/uploads/prod_c65fb23d0dcc4fa3499dab1f.jpg"
   },
   {
     "brand": "ibraq",
     "name": "Blue Aqua Diamond",
     "ar": "بلو أكوا دايموند (المعروف بـ Blue Diamond)",
     "notes": "منعش ومائي من أول رشة، الخيار المفضل للأجواء الحارة والاستخدام الصباحي.",
-    "price": "45,000 د.ع",
+    "price": "55,000 د.ع",
     "vol": "80 مل",
     "icon": "gem",
     "color": "#4A90C4",
     "id": "prod_7",
-    "priceNum": 45000,
+    "priceNum": 55000,
     "pyramid": {
       "top": {
         "notes": "ليمون، نعناع",
@@ -205,19 +212,20 @@
         "notes": "مسك، عنبر رمادي",
         "pct": "32%"
       }
-    }
+    },
+    "photoUrl": "/uploads/prod_c5299ab21c5417a94f3ea368.jpg"
   },
   {
     "brand": "ibraq",
     "name": "Cullinan Iris Diamond",
     "ar": "كولينان إيريس دايموند (المعروف بـ Cullinan Diamond)",
     "notes": "أفخم قطعة بالمجموعة — سُمّيت تيمناً بأشهر ماسة في العالم، حضور راقٍ وثبات طويل.",
-    "price": "45,000 د.ع",
+    "price": "55,000 د.ع",
     "vol": "80 مل",
     "icon": "gem",
     "color": "#CFD6E6",
     "id": "prod_8",
-    "priceNum": 45000,
+    "priceNum": 55000,
     "pyramid": {
       "top": {
         "notes": "إيريس، حمضيات فاتحة",
@@ -231,19 +239,20 @@
         "notes": "عنبر، مسك فاخر",
         "pct": "42%"
       }
-    }
+    },
+    "photoUrl": "/uploads/prod_3ff7a7d9d2eae44d2a280925.jpg"
   },
   {
     "brand": "ibraq",
     "name": "Black Incense Diamond",
     "ar": "بلاك إنسنس دايموند (المعروف بـ Black Diamond)",
     "notes": "كثيف ومدخّن، الأقرب لروائح العود الفاخرة بين كل قطع المجموعة.",
-    "price": "45,000 د.ع",
+    "price": "55,000 د.ع",
     "vol": "80 مل",
     "icon": "gem",
     "color": "#171512",
     "id": "prod_9",
-    "priceNum": 45000,
+    "priceNum": 55000,
     "pyramid": {
       "top": {
         "notes": "بخور، فلفل أسود",
@@ -257,7 +266,8 @@
         "notes": "مسك أسود، عنبر",
         "pct": "38%"
       }
-    }
+    },
+    "photoUrl": "/uploads/prod_1ddccf2d06bbd0fbbf441b01.jpg"
   },
   {
     "brand": "assaf",
@@ -270,7 +280,8 @@
     "price": "55,000 د.ع",
     "vol": "200 مل",
     "id": "prod_15",
-    "priceNum": 55000
+    "priceNum": 55000,
+    "photoUrl": "/uploads/prod_9512bce5c79896a5e115352d.jpg"
   },
   {
     "brand": "assaf",
@@ -296,7 +307,8 @@
     "price": "48,000 د.ع",
     "vol": "200 مل",
     "id": "prod_17",
-    "priceNum": 48000
+    "priceNum": 48000,
+    "photoUrl": "/uploads/prod_3ec144b775ca45d1dfea76ae.jpg"
   },
   {
     "brand": "assaf",
@@ -348,7 +360,8 @@
     "price": "50,000 د.ع",
     "vol": "200 مل",
     "id": "prod_21",
-    "priceNum": 50000
+    "priceNum": 50000,
+    "photoUrl": "/uploads/prod_809234f2219e5e0a7710cbb9.jpg"
   },
   {
     "brand": "assaf",
@@ -361,7 +374,8 @@
     "price": "53,000 د.ع",
     "vol": "200 مل",
     "id": "prod_22",
-    "priceNum": 53000
+    "priceNum": 53000,
+    "photoUrl": "/uploads/prod_6feb48a825d5b71738834714.jpg"
   },
   {
     "brand": "assaf",
@@ -374,7 +388,8 @@
     "price": "53,000 د.ع",
     "vol": "200 مل",
     "id": "prod_23",
-    "priceNum": 53000
+    "priceNum": 53000,
+    "photoUrl": "/uploads/prod_6250b107094f8500f1d30f2e.jpg"
   },
   {
     "brand": "assaf",
@@ -557,19 +572,6 @@
     "vol": "100 مل",
     "id": "prod_37",
     "priceNum": 39000
-  },
-  {
-    "brand": "afnan",
-    "icon": "bottle",
-    "shape": "tall",
-    "color": "#6B4A8A",
-    "name": "9pm Very Sweet",
-    "ar": "٩ بي إم فيري سويت",
-    "notes": "أكثر نسخ الخط حلاوة، فانيليا وكراميل بارزان على القاعدة الدافئة المعتادة.",
-    "price": "40,000 د.ع",
-    "vol": "100 مل",
-    "id": "prod_38",
-    "priceNum": 40000
   },
   {
     "brand": "hawas",

@@ -11,9 +11,10 @@
     "key": "assaf",
     "label": "عساف Assaf",
     "tag": "Frankel · Arrogate · Wild Colt",
-    "color": "#8B2E3C",
+    "color": "#8b2e3c",
     "order": 1,
-    "custom": false
+    "custom": false,
+    "bannerUrl": "/uploads/brand_9763d17275bc6e8e4c956fe9.png"
   },
   {
     "key": "armaf",
