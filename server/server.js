@@ -1744,7 +1744,9 @@ initMailer();
 app.listen(PORT, async () => {
   console.log(`\n  عطور الريحان — يعمل الآن على http://localhost:${PORT}`);
   console.log(`  لوحة الإدارة المستقلة: http://localhost:${PORT}/admin\n`);
-  if (ADMIN_PASSWORD_FROM_ENV) {
+  if (readAdminHash()) {
+    console.log('  كلمة مرور الإدارة: محفوظة من لوحة الإدارة (مشفّرة)\n');
+  } else if (ADMIN_PASSWORD_FROM_ENV) {
     console.log('  كلمة مرور الإدارة: مأخوذة من ملف .env\n');
   } else {
     console.log(`  ⚠ لم يتم تعيين ADMIN_PASSWORD في .env — كلمة مرور مؤقتة لهذه الجلسة: ${ADMIN_PASSWORD}`);
