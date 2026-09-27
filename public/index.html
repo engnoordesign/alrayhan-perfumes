@@ -1805,11 +1805,11 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
   /* Uses a real uploaded photo when the product has one, otherwise falls
      back to the generated symbol. Every product works either way. */
   function productVisualCard(p){
-    if(p.photoUrl) return `<img src="${p.photoUrl}" alt="${p.ar}" loading="lazy" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`;
+    if(p.photoUrl) return `<img src="${pEsc(p.photoUrl)}" alt="${pEsc(p.ar)}" loading="lazy" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`;
     return productIcon(p);
   }
   function productVisualLarge(p){
-    if(p.photoUrl) return `<img src="${p.photoUrl}" alt="${p.ar}" loading="lazy" style="width:100%; height:100%; object-fit:contain;">`;
+    if(p.photoUrl) return `<img src="${pEsc(p.photoUrl)}" alt="${pEsc(p.ar)}" loading="lazy" style="width:100%; height:100%; object-fit:contain;">`;
     return productIcon(p);
   }
 
@@ -2745,11 +2745,11 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
               <h4>معلومات التواصل</h4>
               <div class="co-field">
                 <label>الاسم الكامل</label>
-                <input type="text" name="name" required placeholder="مثال: أحمد محمد">
+                <input type="text" name="name" required placeholder="مثال: أحمد محمد" maxlength="80">
               </div>
               <div class="co-field">
                 <label>رقم الهاتف</label>
-                <input type="tel" name="phone" required placeholder="07xxxxxxxxx">
+                <input type="tel" name="phone" required placeholder="07xxxxxxxxx" inputmode="tel" pattern="\+?[0-9\s\-]{10,16}" title="أدخل رقم هاتف صحيح مثل 07701234567" maxlength="16">
               </div>
             </div>
 
@@ -2764,7 +2764,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
               </div>
               <div class="co-field" id="addressField" style="margin-top:14px;">
                 <label>العنوان بالتفصيل (الحي، أقرب نقطة دالة)</label>
-                <textarea name="address" placeholder="مثال: الموصل، حي..."></textarea>
+                <textarea name="address" placeholder="مثال: الموصل، حي..." maxlength="300"></textarea>
               </div>
               <div class="co-field" id="branchField" style="margin-top:14px; display:none;">
                 <label>اختر الفرع</label>
@@ -2805,6 +2805,7 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
           <div class="co-sum-total"><span>الإجمالي</span><b id="coGrandTotal">${fmtIQD(total + DELIVERY_FEE)}</b></div>
           <button class="btn solid co-submit" id="submitOrderBtn" type="submit" form="checkoutForm">إرسال الطلب</button>
           <p class="co-note">يُسجَّل طلبكم مباشرة لدينا فور الإرسال، ويصل إشعار فوري إلى إدارة المحل. سنتواصل معكم لتأكيد الطلب وتفاصيل الدفع حسب الطريقة المختارة.</p>
+          <p class="co-note" style="margin-top:6px;">نستخدم اسمك ورقمك وعنوانك لتوصيل طلبك والتواصل معك بشأنه فقط، ولا نشاركها مع أي جهة، ولا نطلب أي بيانات بطاقة مصرفية.</p>
         </div>
       </div>
       <div class="co-success" id="coSuccess">
@@ -2871,6 +2872,11 @@ html:not([data-theme="light"]) .logo-light{ display:none !important; }
       const name = (fd.get('name')||'').toString().trim();
       const phone = (fd.get('phone')||'').toString().trim();
       if(!name || !phone){ return; }
+      if(fd.get('deliveryMethod') !== 'pickup' && String(fd.get('address')||'').trim().length < 4){
+        alert('اكتب عنوان التوصيل بالتفصيل (الحي وأقرب نقطة دالة).');
+        e.target.querySelector('[name=address]').focus();
+        return;
+      }
 
       const deliveryMethod = fd.get('deliveryMethod');
       const paymentMethod = fd.get('paymentMethod');
@@ -3612,7 +3618,7 @@ function adSlideHTML(s, i){
     `).join('');
 
     heroDotsWrap.innerHTML = heroSlides.map((s,i)=>`
-      <button class="hero-dot${i===0?' active':''}" data-i="${i}" aria-label="${s.title}"><span class="fill"></span></button>
+      <button class="hero-dot${i===0?' active':''}" data-i="${i}" aria-label="${pEsc(s.title)}"><span class="fill"></span></button>
     `).join('');
 
     heroSlider.querySelectorAll('.slide-content button[data-brand]').forEach(btn=>{
