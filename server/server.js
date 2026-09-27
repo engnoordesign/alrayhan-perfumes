@@ -50,7 +50,49 @@ app.use((req, res, next) => {
   next();
 });
 
+/* HTTPS everywhere: on the live server (NODE_ENV=production or FORCE_HTTPS=on)
+   any plain-http visit is sent to the https address. Local testing on
+   localhost keeps working over http. */
+const FORCE_HTTPS = String(process.env.FORCE_HTTPS || '').toLowerCase() === 'on' || process.env.NODE_ENV === 'production';
+app.use((req, res, next) => {
+  if (!FORCE_HTTPS || req.secure) return next();
+  const host = String(req.headers.host || '');
+  if (/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host)) return next();
+  if (req.method === 'GET' || req.method === 'HEAD') return res.redirect(301, 'https://' + host + req.originalUrl);
+  return res.status(403).json({ error: 'استخدم الرابط الآمن https' });
+});
+
 app.use(express.json({ limit: '100kb' }));
+
+/* ---------------------------------------------------------
+   input sanitising — every text value that arrives in a request body is
+   cleaned before any route sees it: HTML angle brackets and invisible
+   control characters are removed, so nothing typed into the store or the
+   admin panel can ever become a script tag. Passwords are left exactly as
+   typed (they are only hashed or used to log in, never shown).
+--------------------------------------------------------- */
+const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u202A-\u202E\u2066-\u2069]/g;
+function sanitizeBody(value, key, depth) {
+  if (depth > 6) return undefined;
+  if (typeof value === 'string') return /pass/i.test(key || '') ? value : value.replace(/[<>]/g, '').replace(CONTROL_CHARS, '');
+  if (Array.isArray(value)) return value.slice(0, 500).map(v => sanitizeBody(v, key, depth + 1));
+  if (value && typeof value === 'object') {
+    const clean = {};
+    for (const k of Object.keys(value)) {
+      if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue;
+      clean[k] = sanitizeBody(value[k], k, depth + 1);
+    }
+    return clean;
+  }
+  return value;
+}
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object') req.body = sanitizeBody(req.body, '', 0);
+  next();
+});
+const cleanColor = (c, fallback) => (typeof c === 'string' && /^#[0-9a-f]{3,8}$/i.test(c.trim()) ? c.trim() : fallback);
+const cleanWord = (w, fallback) => (typeof w === 'string' && /^[a-z0-9_-]{1,24}$/i.test(w) ? w : fallback);
+const cut = (s, n) => String(s || '').trim().slice(0, n);
 
 // uploads: only real image files, served as images, never as pages
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -222,13 +264,16 @@ const otpStore = new Map(); // phone -> { code, expiresAt }
 function findUserByKey(users, key) {
   return users.find(u => u.key === key);
 }
+const USER_TOKEN_TTL = 30 * 24 * 60 * 60 * 1000;                 // customer sessions last 30 days
 function findUserByToken(users, token) {
-  return users.find(u => u.token === token);
+  if (!token) return null;
+  const u = users.find(x => x.token === token);
+  return u && u.tokenExpires && u.tokenExpires > Date.now() ? u : null;
 }
 function publicUser(u) {
   if (!u) return null;
   // wallet/transactions: leftovers from the removed wallet feature, never sent to the browser
-  const { token, passHash, passSalt, wallet, transactions, ...rest } = u;
+  const { token, tokenExpires, passHash, passSalt, wallet, transactions, ...rest } = u;
   return rest;
 }
 
@@ -304,10 +349,11 @@ app.post('/api/auth/phone/verify', limitAuth, (req, res) => {
   }
   const token = genToken('usrtok');
   if (!user) {
-    user = { id: genId('user'), key, method: 'phone', phone, name: 'زبون عطور الريحان', token };
+    user = { id: genId('user'), key, method: 'phone', phone, name: 'زبون عطور الريحان', token, tokenExpires: Date.now() + USER_TOKEN_TTL };
     users.push(user);
   } else {
     user.token = token;
+    user.tokenExpires = Date.now() + USER_TOKEN_TTL;
   }
   writeTable('users', users);
   res.json({ token, user: publicUser(user) });
@@ -372,10 +418,11 @@ app.post('/api/auth/email/verify', limitAuth, (req, res) => {
   }
   const token = genToken('usrtok');
   if (!user) {
-    user = { id: genId('user'), key, method: 'email', email, name: 'زبون عطور الريحان', token };
+    user = { id: genId('user'), key, method: 'email', email, name: 'زبون عطور الريحان', token, tokenExpires: Date.now() + USER_TOKEN_TTL };
     users.push(user);
   } else {
     user.token = token;
+    user.tokenExpires = Date.now() + USER_TOKEN_TTL;
   }
   writeTable('users', users);
   res.json({ token, user: publicUser(user) });
@@ -531,6 +578,7 @@ app.post('/api/auth/register/verify', limitAuth, (req, res) => {
   if (!user.name || user.name === 'زبون عطور الريحان') user.name = pending.username;
   user.verified = true;
   user.token = token;
+  user.tokenExpires = Date.now() + USER_TOKEN_TTL;
   writeTable('users', users);
   pendingSignups.delete(ckey);
   res.status(201).json({ token, user: publicUser(user) });
@@ -557,6 +605,7 @@ app.post('/api/auth/login', limitAuth, (req, res) => {
   }
   loginFails.delete(lk);
   user.token = genToken('usrtok');
+  user.tokenExpires = Date.now() + USER_TOKEN_TTL;
   writeTable('users', users);
   res.json({ token: user.token, user: publicUser(user) });
 });
@@ -640,12 +689,12 @@ app.get('/api/brands', (req, res) => {
 
 app.post('/api/admin/brands', requireAdmin, (req, res) => {
   const { label, tag, color } = req.body || {};
-  if (!label || !label.trim()) return res.status(400).json({ error: 'اسم الخط مطلوب' });
+  if (typeof label !== 'string' || !label.trim()) return res.status(400).json({ error: 'اسم الخط مطلوب' });
   const brands = readTable('brands');
-  const key = slugify(label) + '_' + Date.now().toString(36).slice(-4);
+  const key = slugify(label).slice(0, 40) + '_' + Date.now().toString(36).slice(-4);
   const brand = {
-    key, label: label.trim(), tag: (tag || '').trim(),
-    color: color || '#C9A227', order: brands.length, custom: true
+    key, label: cut(label, 60), tag: cut(tag, 120),
+    color: cleanColor(color, '#C9A227'), order: brands.length, custom: true
   };
   brands.push(brand);
   writeTable('brands', brands);
@@ -657,9 +706,9 @@ app.put('/api/admin/brands/:key', requireAdmin, (req, res) => {
   const brand = brands.find(b => b.key === req.params.key);
   if (!brand) return res.status(404).json({ error: 'الخط غير موجود' });
   const { label, tag, color } = req.body || {};
-  if (label && label.trim()) brand.label = label.trim();
-  if (typeof tag === 'string') brand.tag = tag.trim();
-  if (color) brand.color = color;
+  if (typeof label === 'string' && label.trim()) brand.label = cut(label, 60);
+  if (typeof tag === 'string') brand.tag = cut(tag, 120);
+  if (color) brand.color = cleanColor(color, brand.color || '#C9A227');
   writeTable('brands', brands);
   res.json(brand);
 });
@@ -727,24 +776,25 @@ app.get('/api/diamonds', (req, res) => {
 
 app.post('/api/admin/products', requireAdmin, (req, res) => {
   const body = req.body || {};
-  const ar = (body.ar || '').trim();
-  const priceNum = Math.max(0, parseInt(body.priceNum, 10) || 0);
+  const ar = cut(body.ar, 120);
+  const priceNum = Math.min(1e9, Math.max(0, parseInt(body.priceNum, 10) || 0));
   if (!ar || !priceNum || !body.brand) {
     return res.status(400).json({ error: 'الخط، الاسم، والسعر مطلوبة' });
   }
+  if (!readTable('brands').some(b => b.key === body.brand)) return res.status(400).json({ error: 'الخط غير موجود' });
   const products = readTable('products');
   const product = {
     id: genId('prod'),
     brand: body.brand,
     ar,
-    name: (body.name || '').trim(),
-    notes: (body.notes || '').trim() || 'عطر مضاف حديثاً — لا يوجد وصف بعد.',
+    name: cut(body.name, 120),
+    notes: cut(body.notes, 1000) || 'عطر مضاف حديثاً — لا يوجد وصف بعد.',
     priceNum,
     price: fmtIQD(priceNum),
-    vol: (body.vol || '').trim() || '100 مل',
-    icon: body.icon || 'bottle',
-    shape: body.shape || 'classic',
-    color: body.color || '#C9A227',
+    vol: cut(body.vol, 30) || '100 مل',
+    icon: cleanWord(body.icon, 'bottle'),
+    shape: cleanWord(body.shape, 'classic'),
+    color: cleanColor(body.color, '#C9A227'),
     available: typeof body.available === 'boolean' ? body.available : true,
     original: !!body.original,
     limited: !!body.limited,
@@ -769,8 +819,8 @@ app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
   if (!product) return res.status(404).json({ error: 'العطر غير موجود' });
 
   const body = req.body || {};
-  if (typeof body.priceNum === 'number') {
-    product.priceNum = Math.max(0, body.priceNum);
+  if (typeof body.priceNum === 'number' && Number.isFinite(body.priceNum)) {
+    product.priceNum = Math.min(1e9, Math.max(0, Math.round(body.priceNum)));
     product.price = fmtIQD(product.priceNum);
   }
   if (typeof body.qty !== 'undefined') {
@@ -787,14 +837,14 @@ app.put('/api/admin/products/:id', requireAdmin, (req, res) => {
     if (cost === null) delete product.cost;
     else if (typeof cost === 'number') product.cost = cost;
   }
-  if (typeof body.ar === 'string' && body.ar.trim()) product.ar = body.ar.trim();
-  if (typeof body.name === 'string') product.name = body.name.trim();
-  if (typeof body.notes === 'string' && body.notes.trim()) product.notes = body.notes.trim();
-  if (typeof body.vol === 'string' && body.vol.trim()) product.vol = body.vol.trim();
-  if (typeof body.brand === 'string') product.brand = body.brand;
+  if (typeof body.ar === 'string' && body.ar.trim()) product.ar = cut(body.ar, 120);
+  if (typeof body.name === 'string') product.name = cut(body.name, 120);
+  if (typeof body.notes === 'string' && body.notes.trim()) product.notes = cut(body.notes, 1000);
+  if (typeof body.vol === 'string' && body.vol.trim()) product.vol = cut(body.vol, 30);
+  if (typeof body.brand === 'string' && readTable('brands').some(b => b.key === body.brand)) product.brand = body.brand;
   if (typeof body.original === 'boolean') product.original = body.original;
   if (typeof body.limited === 'boolean') product.limited = body.limited;
-  if (typeof body.color === 'string') product.color = body.color;
+  if (typeof body.color === 'string') product.color = cleanColor(body.color, product.color || '#C9A227');
   if (typeof body.pyramid !== 'undefined') {
     const pyr = cleanPyramid(body.pyramid);
     if (pyr) product.pyramid = pyr; else delete product.pyramid;
@@ -1247,6 +1297,9 @@ app.post('/api/orders', limitOrders, async (req, res) => {
   // home delivery carries a flat fee; branch pickup is free.
   // Computed server-side so the client can never skip it.
   const deliveryMethod = body.deliveryMethod === 'pickup' ? 'pickup' : 'delivery';
+  if (deliveryMethod === 'delivery' && String(body.address || '').trim().length < 4) {
+    return res.status(400).json({ error: 'عنوان التوصيل مطلوب' });
+  }
   const deliveryFee = deliveryMethod === 'delivery' ? DELIVERY_FEE : 0;
   const total = subtotal + deliveryFee;
 
